@@ -73,6 +73,16 @@ def init_db(db_path: str = None) -> None:
         UNIQUE(conversation_id, field_name)
     );
 
+    CREATE TABLE IF NOT EXISTS interview_state (
+        conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+        interview_status TEXT NOT NULL,
+        current_intent TEXT,
+        target_field TEXT,
+        skipped_fields TEXT,
+        last_decision TEXT,
+        updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
     CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);

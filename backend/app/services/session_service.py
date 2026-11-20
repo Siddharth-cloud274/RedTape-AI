@@ -9,10 +9,12 @@ from app.schemas.facts import (
     ConversationMessageResponse,
     ApplicantFactResponse,
 )
+from app.schemas.interview import InterviewStatus, InterviewAction, InterviewDecision
 from app.db.database import get_db, init_db
 from app.services.gemini_service import gemini_service, GeminiService
 from app.services.memory_service import memory_service
 from app.services.context_tracker import context_tracker
+from app.services.interview_engine import interview_orchestrator
 
 
 class SessionNotFoundError(Exception):
@@ -56,6 +58,7 @@ class SessionManager:
             ]
 
             facts = memory_service.get_confirmed_facts(conversation_id, db)
+            interview_state, _ = interview_orchestrator.get_interview_state(conversation_id, db)
 
             return ConversationDetailResponse(
                 conversation_id=conv_row["id"],
@@ -66,6 +69,7 @@ class SessionManager:
                 updated_at=conv_row["updated_at"],
                 messages=messages,
                 facts=facts,
+                interview=interview_state,
             )
 
     def get_session(self, conversation_id: str) -> Optional[Dict]:
@@ -130,12 +134,14 @@ class SessionManager:
 
                 if assistant_msg:
                     facts = memory_service.get_confirmed_facts(conversation_id, db)
+                    cached_interview, _ = interview_orchestrator.get_interview_state(conversation_id, db)
                     return ChatResponse(
                         conversation_id=conversation_id,
                         message_id=assistant_msg["id"],
                         reply=assistant_msg["content"],
                         mode=assistant_msg["mode"] or "gemini",
                         facts=facts,
+                        interview=cached_interview,
                     )
 
             # 3. Insert or update user message as pending
@@ -163,8 +169,10 @@ class SessionManager:
             ).fetchall()
             prior_history = [{"role": r["role"], "content": r["content"]} for r in prior_rows]
 
-            # 5. Load confirmed facts & calculate missing fields
+            # 5. Load confirmed facts & previous interview target
             confirmed_facts = memory_service.get_facts_dict(conversation_id, db)
+            prev_decision, _ = interview_orchestrator.get_interview_state(conversation_id, db)
+            prev_target = prev_decision.target_field if prev_decision else None
 
         # -------------------------------------------------------------
         # Phase 2: Gemini Network Call (DB lock released)
@@ -174,6 +182,7 @@ class SessionManager:
                 current_message=request.message,
                 history=prior_history,
                 confirmed_facts=confirmed_facts,
+                target_field=prev_target,
             )
         except Exception:
             # Mark user message as failed so it can be retried cleanly
@@ -197,22 +206,45 @@ class SessionManager:
                 (user_msg_id,),
             )
 
-            # 2. Insert assistant message
-            db.execute(
-                "INSERT INTO messages (id, conversation_id, client_message_id, role, content, mode, processing_status, created_at) "
-                "VALUES (?, ?, NULL, 'assistant', ?, 'gemini', 'completed', ?)",
-                (assistant_msg_id, conversation_id, structured_result.reply, finish_time),
-            )
-
-            # 3. Reconcile and save facts
+            # 2. Reconcile and save facts
             saved_facts = memory_service.reconcile_and_save_facts(
                 conversation_id=conversation_id,
                 extracted_facts=structured_result.extracted_facts,
                 source_message_id=user_msg_id,
                 db=db,
             )
+            updated_facts = memory_service.get_facts_dict(conversation_id, db)
 
-            # 4. Update conversation metadata
+            # 3. Evaluate adaptive interview decision
+            interview_decision = interview_orchestrator.evaluate_interview_decision(
+                conversation_id=conversation_id,
+                current_intent=structured_result.intent,
+                user_message=request.message,
+                confirmed_facts=updated_facts,
+                db=db,
+            )
+
+            # 4. Enforce stopping conditions & safe phrasing
+            reply_text = structured_result.reply
+            if interview_decision.interview_status == InterviewStatus.READY_FOR_RESEARCH:
+                closing_disclaimer = (
+                    "Official verification and legal application checklists will be connected in future milestones."
+                )
+                if "official" not in reply_text.lower() and "milestone" not in reply_text.lower() and "future" not in reply_text.lower():
+                    reply_text = f"{reply_text.strip()}\n\n{closing_disclaimer}"
+            elif interview_decision.interview_status == InterviewStatus.PAUSED:
+                pause_note = "I have paused our conversation here. Your details are saved and you can continue anytime."
+                if "pause" not in reply_text.lower():
+                    reply_text = pause_note
+
+            # 5. Insert assistant message
+            db.execute(
+                "INSERT INTO messages (id, conversation_id, client_message_id, role, content, mode, processing_status, created_at) "
+                "VALUES (?, ?, NULL, 'assistant', ?, 'gemini', 'completed', ?)",
+                (assistant_msg_id, conversation_id, reply_text, finish_time),
+            )
+
+            # 6. Update conversation metadata
             db.execute(
                 "UPDATE conversations SET current_intent = ?, intent_status = ?, updated_at = ? WHERE id = ?",
                 (
@@ -226,10 +258,11 @@ class SessionManager:
         return ChatResponse(
             conversation_id=conversation_id,
             message_id=assistant_msg_id,
-            reply=structured_result.reply,
+            reply=reply_text,
             mode="gemini",
             intent=structured_result,
             facts=saved_facts,
+            interview=interview_decision,
         )
 
     def clear_all(self):

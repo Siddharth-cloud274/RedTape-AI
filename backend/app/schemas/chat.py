@@ -2,6 +2,9 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.facts import ExtractedFactItem, ApplicantFactResponse
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.schemas.interview import InterviewDecision
 
 
 class IntentCategory(str, Enum):
@@ -38,6 +41,10 @@ class KnownInformation(BaseModel):
         default=None,
         description="Citizen's state, district, or city (e.g. Kolkata, West Bengal)"
     )
+    business_location: Optional[str] = Field(
+        default=None,
+        description="Location of business establishment (e.g. Barrackpore)"
+    )
     purpose: Optional[str] = Field(
         default=None,
         description="Purpose of certificate or registration (e.g. college admission, scholarship)"
@@ -45,6 +52,10 @@ class KnownInformation(BaseModel):
     business_type: Optional[str] = Field(
         default=None,
         description="Type of business (e.g. bakery, grocery, restaurant)"
+    )
+    application_type: Optional[str] = Field(
+        default=None,
+        description="Application status: new application or renewal"
     )
     annual_turnover: Optional[str] = Field(
         default=None,
@@ -125,3 +136,5 @@ class ChatResponse(BaseModel):
     mode: str = "gemini"
     intent: Optional[StructuredIntentResult] = None
     facts: Optional[List[ApplicantFactResponse]] = None
+    interview: Optional[object] = None
+

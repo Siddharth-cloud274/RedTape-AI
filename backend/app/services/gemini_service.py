@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Dict, List, Optional
 from google import genai
 from google.genai import types
@@ -16,7 +17,7 @@ from app.schemas.chat import (
 from app.services.context_tracker import context_tracker
 
 SYSTEM_INSTRUCTION = """You are RedTape AI, an agentic AI assistant helping Indian citizens navigate government bureaucracy.
-Your task is CONVERSATIONAL INTENT UNDERSTANDING, FACT EXTRACTION, and CONTEXT-AWARE ASSISTANCE.
+Your task is CONVERSATIONAL INTENT UNDERSTANDING, FACT EXTRACTION, and ADAPTIVE CONVERSATIONAL INTERVIEWING.
 
 CRITICAL RULES & GROUNDING:
 1. Grounding & Anti-Hallucination: You do NOT have a live government research engine connected yet. NEVER invent or fabricate eligibility criteria, required documents, application fees, turnaround times, or government URLs. If the user asks for verified legal checklists, clarify that verified official requirements will be connected in subsequent milestones.
@@ -31,14 +32,17 @@ CRITICAL RULES & GROUNDING:
    - "unclear": Ambiguous or underspecified requests (e.g., "I need some certificate", "help me with paperwork"). Ask a concise clarifying question.
 3. Fact Extraction & Corrections:
    - Extract facts explicitly stated by the user into 'extracted_facts' (with field_name, field_value, exact evidence snippet).
+   - Use standardized field names: 'business_type', 'business_location', 'application_type' (new/renewal), 'application_purpose', 'approximate_annual_turnover', 'residence_location'.
    - If the user explicitly corrects a prior fact (e.g. 'Actually, I live in Howrah'), set is_correction=true.
+   - Separate personal residence location from business shop location if both are mentioned.
    - Never extract guesses or assumptions as confirmed facts.
    - Do NOT collect or store sensitive personal identifiers (Aadhaar, PAN, passwords, bank details).
-4. Context Memory & Non-Repetition:
-   - Never ask for information that is already in the 'Confirmed Facts' list.
-   - If missing information is needed, ask for ONE relevant missing context field in a natural, polite manner.
-5. Conversational Tone:
-   - Sound like a helpful human assistant. Do not use numbered choice menus (e.g., '1 for income, 2 for domicile').
+4. Adaptive Conversational Interviewing:
+   - Sound like a warm, helpful human assistant. Do not use numbered form choices (e.g. 'Select 1 for income, 2 for domicile').
+   - NEVER ask for information that is already in the 'Confirmed Facts' list.
+   - If a target field is specified, ask ONLY ONE conversational question for that field.
+   - If all preliminary context is complete, acknowledge the details and state that official source verification will be connected in future milestones.
+   - Understand short answers, multiple facts in one message, and Hindi or mixed Hinglish naturally.
 """
 
 
@@ -96,6 +100,8 @@ class GeminiService:
         history: List[Dict],
         confirmed_facts: Dict[str, str],
         missing_fields: List[str],
+        target_field: Optional[str] = None,
+        interview_status: Optional[str] = None,
     ) -> str:
         """Assembles prompt grounding with history, confirmed facts, and missing fields."""
         recent_history = history[-10:] if len(history) > 10 else history
@@ -118,6 +124,15 @@ class GeminiService:
 
         if missing_fields:
             lines.append(f"\nMissing Context Fields Needed: {', '.join(missing_fields)}")
+
+        if target_field:
+            lines.append(
+                f"\nNext Interview Focus: If asking a question, ask naturally ONLY for the target field: '{target_field}'. Do not re-ask known facts."
+            )
+        if interview_status == "ready_for_research":
+            lines.append(
+                "\nInterview Status: All preliminary scoping context is fulfilled. Acknowledge the details provided and explain that official research and checklists will be connected in future milestones. DO NOT claim that official eligibility is confirmed."
+            )
 
         lines.append(f"\nCurrent User Message: {current_message}")
         lines.append(
@@ -189,6 +204,8 @@ class GeminiService:
         history: Optional[List[Dict]] = None,
         confirmed_facts: Optional[Dict[str, str]] = None,
         missing_fields: Optional[List[str]] = None,
+        target_field: Optional[str] = None,
+        interview_status: Optional[str] = None,
     ) -> StructuredIntentResult:
         """
         Sends conversation context to Gemini with structured output,
@@ -203,6 +220,8 @@ class GeminiService:
             history=history or [],
             confirmed_facts=facts_dict,
             missing_fields=missing_list,
+            target_field=target_field,
+            interview_status=interview_status,
         )
 
         config = types.GenerateContentConfig(
@@ -248,6 +267,20 @@ class GeminiService:
             except APIError as api_err:
                 code = getattr(api_err, "code", None)
                 if code == 429:
+                    # Bounded single retry before failing to absorb short per-minute burst rate limits
+                    time.sleep(1.5)
+                    try:
+                        retry_resp = client.models.generate_content(
+                            model=model_candidate,
+                            contents=prompt,
+                            config=config,
+                        )
+                        if retry_resp.text:
+                            data = json.loads(retry_resp.text)
+                            structured = StructuredIntentResult.model_validate(data)
+                            return self.validate_consistency(structured, facts_dict)
+                    except Exception:
+                        pass
                     raise GeminiServiceError(
                         "Gemini API rate limit or quota exceeded. Please wait a moment and retry.",
                         status_code=429,

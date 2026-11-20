@@ -123,7 +123,7 @@ export default function Sidebar({
           <ConnectionStatus />
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 pt-1">
             <Shield className="w-3 h-3 text-slate-500" />
-            <span>Hack-N-Pitch 2026 &bull; M5</span>
+            <span>Hack-N-Pitch 2026 &bull; M6</span>
           </div>
         </div>
       </aside>
