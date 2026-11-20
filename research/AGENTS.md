@@ -69,3 +69,15 @@ planning, research and environment preparation only.
 
 Build the core application during the permitted
 hackathon development period.
+
+
+## API KEY SECURITY — MANDATORY
+
+- NEVER write real API keys into .env.example.
+- .env.example must contain placeholders only.
+- Real credentials belong in .env files ignored by Git.
+- Never copy secrets from .env into tracked files.
+- Before every commit, check staged files for secrets.
+- Never commit credentials, tokens or service-account keys.
+- Never bypass GitHub Push Protection.
+- If a secret is detected, stop and request review.
