@@ -1,8 +1,19 @@
 import uuid
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
+
 from main import app
+from app.schemas.chat import (
+    IntentCategory,
+    IntentStatus,
+    NextAction,
+    ServiceSupport,
+    StructuredIntentResult,
+    KnownInformation,
+)
 from app.services.session_service import session_manager
+from app.services.gemini_service import gemini_service
 
 client = TestClient(app)
 
@@ -15,7 +26,21 @@ def clean_sessions():
     session_manager.clear_all()
 
 
-def test_new_session_creation():
+def mock_ai_reply(text: str = "Test response from Gemini AI"):
+    return StructuredIntentResult(
+        intent=IntentCategory.WB_INCOME_CERTIFICATE,
+        intent_status=IntentStatus.IDENTIFIED,
+        service_support=ServiceSupport.SUPPORTED_MVP,
+        known_information=KnownInformation(),
+        missing_information=[],
+        next_action=NextAction.ACKNOWLEDGE_INTENT,
+        reply=text,
+    )
+
+
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_new_session_creation(mock_gemini):
+    mock_gemini.return_value = mock_ai_reply("I can help with your income certificate.")
     client_msg_id = str(uuid.uuid4())
     payload = {
         "conversation_id": None,
@@ -30,11 +55,14 @@ def test_new_session_creation():
     assert uuid.UUID(data["conversation_id"])  # must be valid UUID
     assert "message_id" in data
     assert uuid.UUID(data["message_id"])
-    assert data["mode"] == "backend_stub"
-    assert "Demo mode: your message was received by the RedTape AI backend." in data["reply"]
+    assert data["mode"] == "gemini"
+    assert "income certificate" in data["reply"].lower()
+    assert "intent" in data
 
 
-def test_follow_up_message_reuses_conversation_id():
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_follow_up_message_reuses_conversation_id(mock_gemini):
+    mock_gemini.return_value = mock_ai_reply("Trade licence acknowledged.")
     # 1. First message
     client_msg_id_1 = str(uuid.uuid4())
     payload_1 = {
@@ -47,6 +75,7 @@ def test_follow_up_message_reuses_conversation_id():
     conv_id = res_1.json()["conversation_id"]
 
     # 2. Follow-up message
+    mock_gemini.return_value = mock_ai_reply("Location Kolkata recorded.")
     client_msg_id_2 = str(uuid.uuid4())
     payload_2 = {
         "conversation_id": conv_id,
@@ -69,7 +98,9 @@ def test_follow_up_message_reuses_conversation_id():
     assert session["messages"][3]["role"] == "assistant"
 
 
-def test_independent_sessions_isolation():
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_independent_sessions_isolation(mock_gemini):
+    mock_gemini.return_value = mock_ai_reply("Session response")
     # Session A
     res_a = client.post("/api/chat", json={
         "conversation_id": None,
@@ -143,7 +174,9 @@ def test_unknown_session_returns_404():
     assert "not found or expired" in data["detail"].lower()
 
 
-def test_duplicate_request_idempotency():
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_duplicate_request_idempotency(mock_gemini):
+    mock_gemini.return_value = mock_ai_reply("First answer")
     client_msg_id = str(uuid.uuid4())
     payload = {
         "conversation_id": None,

@@ -46,8 +46,13 @@ export default function MessageBubble({ message, isTyping = false, onRetry }) {
         {!isUser && (
           <div className="flex items-center gap-2 mb-1 px-1">
             <span className="text-[11px] font-semibold text-slate-300">RedTape AI</span>
-            {message.mode === 'backend_stub' && (
+            {message.mode === 'gemini' && (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                AI Assistant
+              </span>
+            )}
+            {message.mode === 'backend_stub' && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded font-mono bg-slate-800 text-slate-400 border border-slate-700">
                 Backend Stub
               </span>
             )}
@@ -86,7 +91,7 @@ export default function MessageBubble({ message, isTyping = false, onRetry }) {
 
         {isUser && isPending && (
           <span className="text-[10px] text-slate-500 mt-1 px-1 animate-pulse">
-            Sending to backend...
+            Thinking...
           </span>
         )}
 

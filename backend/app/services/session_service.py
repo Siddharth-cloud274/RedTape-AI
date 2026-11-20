@@ -2,11 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from app.schemas.chat import ChatRequest, ChatResponse
-
-STUB_REPLY_TEXT = (
-    "Demo mode: your message was received by the RedTape AI backend. "
-    "AI assistance is not enabled yet."
-)
+from app.services.gemini_service import gemini_service, GeminiService
 
 
 class SessionNotFoundError(Exception):
@@ -17,9 +13,10 @@ class SessionNotFoundError(Exception):
 class SessionManager:
     """In-memory conversation session manager for RedTape AI."""
 
-    def __init__(self):
+    def __init__(self, ai_service: Optional[GeminiService] = None):
         # Maps conversation_id -> dict with session metadata, messages, and client_id cache
         self._sessions: Dict[str, Dict] = {}
+        self.ai_service = ai_service or gemini_service
 
     def get_session(self, conversation_id: str) -> Optional[Dict]:
         return self._sessions.get(conversation_id)
@@ -43,12 +40,20 @@ class SessionManager:
 
         session = self._sessions[conversation_id]
 
-        # 3. Idempotency / Retry Check
+        # 3. Idempotency / Retry Check: return identical cached response
         if request.client_message_id in session["client_message_cache"]:
-            # Return previously generated response without duplicating history
             return session["client_message_cache"][request.client_message_id]
 
-        # 4. Record User Message
+        # 4. Extract prior conversation context (history before appending the new message)
+        prior_history = list(session["messages"])
+
+        # 5. Call Gemini AI Service for intent understanding & conversational reply
+        structured_result = self.ai_service.analyze_intent_and_reply(
+            current_message=request.message,
+            history=prior_history,
+        )
+
+        # 6. Record User Message in history
         user_message_record = {
             "id": request.client_message_id,
             "role": "user",
@@ -57,13 +62,14 @@ class SessionManager:
         }
         session["messages"].append(user_message_record)
 
-        # 5. Generate Assistant Stub Turn
+        # 7. Record Assistant Turn in history
         assistant_message_id = str(uuid.uuid4())
         response = ChatResponse(
             conversation_id=conversation_id,
             message_id=assistant_message_id,
-            reply=STUB_REPLY_TEXT,
-            mode="backend_stub",
+            reply=structured_result.reply,
+            mode="gemini",
+            intent=structured_result,
         )
 
         assistant_message_record = {
@@ -71,17 +77,18 @@ class SessionManager:
             "role": "assistant",
             "content": response.reply,
             "mode": response.mode,
+            "intent": structured_result.model_dump(),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         session["messages"].append(assistant_message_record)
 
-        # 6. Cache for client_message_id deduplication
+        # 8. Cache for client_message_id deduplication
         session["client_message_cache"][request.client_message_id] = response
 
         return response
 
     def clear_all(self):
-        """Helper for testing to reset session memory."""
+        """Helper to reset session memory between tests."""
         self._sessions.clear()
 
 
