@@ -13,9 +13,10 @@ from app.schemas.chat import (
     ServiceSupport,
     StructuredIntentResult,
 )
+from app.services.context_tracker import context_tracker
 
 SYSTEM_INSTRUCTION = """You are RedTape AI, an agentic AI assistant helping Indian citizens navigate government bureaucracy.
-Your task is CONVERSATIONAL INTENT UNDERSTANDING and CONTEXT RETENTION.
+Your task is CONVERSATIONAL INTENT UNDERSTANDING, FACT EXTRACTION, and CONTEXT-AWARE ASSISTANCE.
 
 CRITICAL RULES & GROUNDING:
 1. Grounding & Anti-Hallucination: You do NOT have a live government research engine connected yet. NEVER invent or fabricate eligibility criteria, required documents, application fees, turnaround times, or government URLs. If the user asks for verified legal checklists, clarify that verified official requirements will be connected in subsequent milestones.
@@ -28,12 +29,16 @@ CRITICAL RULES & GROUNDING:
    - "food_business_setup": Opening or setting up a food business (e.g., bakery, restaurant, cafe, sweet shop). Acknowledge that food establishments typically involve both a local municipal Trade Licence and an FSSAI Food Safety registration, but do not assert unverified legal rules.
    - "unsupported": Services outside the initial scope (e.g., passport, driving licence, property registration, voter card). Transparently acknowledge the limitation.
    - "unclear": Ambiguous or underspecified requests (e.g., "I need some certificate", "help me with paperwork"). Ask a concise clarifying question.
-3. Context Memory:
-   - Always analyze the full conversation history.
-   - Follow-up messages (e.g., "I live in Kolkata", "It's for college") must be interpreted in the context of the active administrative request, not as unrelated standalone goals.
-4. Output:
-   - Provide a concise, helpful conversational reply for the citizen in the 'reply' field.
-   - Extract only explicitly established facts into 'known_information'.
+3. Fact Extraction & Corrections:
+   - Extract facts explicitly stated by the user into 'extracted_facts' (with field_name, field_value, exact evidence snippet).
+   - If the user explicitly corrects a prior fact (e.g. 'Actually, I live in Howrah'), set is_correction=true.
+   - Never extract guesses or assumptions as confirmed facts.
+   - Do NOT collect or store sensitive personal identifiers (Aadhaar, PAN, passwords, bank details).
+4. Context Memory & Non-Repetition:
+   - Never ask for information that is already in the 'Confirmed Facts' list.
+   - If missing information is needed, ask for ONE relevant missing context field in a natural, polite manner.
+5. Conversational Tone:
+   - Sound like a helpful human assistant. Do not use numbered choice menus (e.g., '1 for income, 2 for domicile').
 """
 
 
@@ -47,7 +52,7 @@ class GeminiServiceError(Exception):
 
 
 class GeminiService:
-    """Modular service handling Google Gemini API integration and intent detection."""
+    """Modular service handling Google Gemini API integration, intent detection, and fact extraction."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self._api_key = api_key
@@ -85,32 +90,50 @@ class GeminiService:
                 status_code=500,
             ) from e
 
-    def _format_conversation_history(
-        self, current_message: str, history: List[Dict]
+    def _format_conversation_context(
+        self,
+        current_message: str,
+        history: List[Dict],
+        confirmed_facts: Dict[str, str],
+        missing_fields: List[str],
     ) -> str:
-        """Assembles chronological conversation history for prompt grounding."""
+        """Assembles prompt grounding with history, confirmed facts, and missing fields."""
         recent_history = history[-10:] if len(history) > 10 else history
 
-        lines = ["Prior Conversation Context:"]
+        lines = ["=== Prior Conversation Turns ==="]
         if not recent_history:
-            lines.append("No prior turns. This is the first message.")
+            lines.append("No prior turns in this session.")
         else:
             for turn in recent_history:
                 role = turn.get("role", "user").capitalize()
                 content = turn.get("content", "")
                 lines.append(f"{role}: {content}")
 
+        lines.append("\n=== Established Confirmed Facts ===")
+        if not confirmed_facts:
+            lines.append("No confirmed facts recorded yet.")
+        else:
+            for k, v in confirmed_facts.items():
+                lines.append(f"- {k}: {v}")
+
+        if missing_fields:
+            lines.append(f"\nMissing Context Fields Needed: {', '.join(missing_fields)}")
+
         lines.append(f"\nCurrent User Message: {current_message}")
         lines.append(
-            "Based on the conversation context and current user message, "
-            "perform intent classification and generate your conversational response."
+            "Instructions: Analyze the message, extract any newly supplied facts or corrections, "
+            "perform intent classification, and provide your concise, natural reply."
         )
         return "\n".join(lines)
 
     def validate_consistency(
-        self, result: StructuredIntentResult
+        self,
+        result: StructuredIntentResult,
+        known_facts: Optional[Dict[str, str]] = None,
     ) -> StructuredIntentResult:
         """Enforces logical consistency across intent, status, support, and action."""
+        if known_facts is None:
+            known_facts = {}
         intent = result.intent
 
         if intent == IntentCategory.UNCLEAR:
@@ -135,29 +158,51 @@ class GeminiService:
         }:
             result.intent_status = IntentStatus.IDENTIFIED
             result.service_support = ServiceSupport.SUPPORTED_MVP
-            if result.next_action not in {
-                NextAction.ACKNOWLEDGE_INTENT,
-                NextAction.ASK_CLARIFICATION,
-            }:
-                result.next_action = NextAction.ACKNOWLEDGE_INTENT
 
         elif intent == IntentCategory.FOOD_BUSINESS_SETUP:
             result.intent_status = IntentStatus.IDENTIFIED
             result.service_support = ServiceSupport.RECOGNIZED_NOT_IMPLEMENTED
             result.next_action = NextAction.ACKNOWLEDGE_INTENT
 
+        # Combine previously known facts with newly extracted facts for missing context calculation
+        combined_facts = dict(known_facts)
+        for ef in result.extracted_facts:
+            if ef.field_name and ef.field_value:
+                combined_facts[ef.field_name.strip().lower()] = ef.field_value.strip()
+
+        # Deterministically compute missing fields
+        deterministic_missing = context_tracker.calculate_missing_fields(
+            result.intent, combined_facts
+        )
+        result.missing_information = deterministic_missing
+
+        if deterministic_missing and result.intent_status == IntentStatus.IDENTIFIED:
+            result.next_action = NextAction.ASK_CLARIFICATION
+        elif not deterministic_missing and result.intent_status == IntentStatus.IDENTIFIED:
+            result.next_action = NextAction.ACKNOWLEDGE_INTENT
+
         return result
 
     def analyze_intent_and_reply(
-        self, current_message: str, history: Optional[List[Dict]] = None
+        self,
+        current_message: str,
+        history: Optional[List[Dict]] = None,
+        confirmed_facts: Optional[Dict[str, str]] = None,
+        missing_fields: Optional[List[str]] = None,
     ) -> StructuredIntentResult:
         """
         Sends conversation context to Gemini with structured output,
-        validates the response, and returns StructuredIntentResult.
+        extracts facts and intent, and returns validated StructuredIntentResult.
         """
         client = self._get_client()
-        prompt = self._format_conversation_history(
-            current_message, history or []
+        facts_dict = confirmed_facts or {}
+        missing_list = missing_fields or []
+
+        prompt = self._format_conversation_context(
+            current_message=current_message,
+            history=history or [],
+            confirmed_facts=facts_dict,
+            missing_fields=missing_list,
         )
 
         config = types.GenerateContentConfig(
@@ -197,8 +242,8 @@ class GeminiService:
                         status_code=502,
                     ) from parse_err
 
-                # Enforce logical consistency rules
-                return self.validate_consistency(structured)
+                # Enforce logical consistency and update missing fields deterministically
+                return self.validate_consistency(structured, facts_dict)
 
             except APIError as api_err:
                 code = getattr(api_err, "code", None)
@@ -208,7 +253,6 @@ class GeminiService:
                         status_code=429,
                     ) from api_err
                 if code == 503:
-                    # Model spike in demand: record and try next candidate
                     last_error = api_err
                     continue
                 raise GeminiServiceError(
@@ -227,7 +271,6 @@ class GeminiService:
                     status_code=500,
                 ) from generic_err
 
-        # If all candidates experienced 503 high demand
         if last_error:
             raise GeminiServiceError(
                 "Gemini service is currently experiencing temporary high demand across models. Please retry in a few moments.",

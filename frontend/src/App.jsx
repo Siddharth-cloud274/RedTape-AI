@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppShell from './components/AppShell';
 import ChatWindow from './components/ChatWindow';
 import { sendChatMessage } from './services/chatTransport';
+import { getConversationHistory } from './services/api';
+
+const STORAGE_KEY = 'redtape_conversations_v1';
 
 function createClientUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -20,19 +23,101 @@ function createNewConversation() {
     backendId: null, // Initialized to null; set upon first successful POST /api/chat
     title: 'New Conversation',
     messages: [],
+    facts: [],
     isExpired: false,
     createdAt: new Date().toISOString(),
   };
 }
 
+function loadSavedConversations() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item) => ({
+          id: item.id || `conv-${Date.now()}`,
+          backendId: item.backendId || null,
+          title: item.title || 'Conversation',
+          messages: item.messages || [],
+          facts: item.facts || [],
+          isExpired: false,
+          createdAt: item.createdAt || new Date().toISOString(),
+        }));
+      }
+    }
+  } catch {
+    // Ignore localStorage parse errors and fall through
+  }
+  return [createNewConversation()];
+}
+
 export default function App() {
-  const [conversations, setConversations] = useState(() => [createNewConversation()]);
+  const [conversations, setConversations] = useState(loadSavedConversations);
   const [activeId, setActiveId] = useState(() => conversations[0]?.id);
   // Track which conversation IDs currently have a message in-flight
   const [pendingConversations, setPendingConversations] = useState({});
 
   const activeConversation = conversations.find((c) => c.id === activeId) || conversations[0];
   const isTyping = Boolean(pendingConversations[activeConversation?.id]);
+
+  // Persist conversation summaries to localStorage
+  useEffect(() => {
+    try {
+      const toSave = conversations.map((c) => ({
+        id: c.id,
+        backendId: c.backendId,
+        title: c.title,
+        createdAt: c.createdAt,
+        // Persist messages so offline / fast-reload works seamlessly
+        messages: c.messages,
+        facts: c.facts || [],
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [conversations]);
+
+  // Re-hydrate full conversation history from SQLite if conversation has a backendId
+  useEffect(() => {
+    if (!activeConversation || !activeConversation.backendId) return;
+
+    let isMounted = true;
+    const backendId = activeConversation.backendId;
+
+    getConversationHistory(backendId).then((res) => {
+      if (!isMounted || !res.success || !res.data) return;
+
+      const serverMessages = (res.data.messages || []).map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        mode: m.mode,
+        status: 'sent',
+        timestamp: m.created_at,
+      }));
+
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.backendId === backendId) {
+            return {
+              ...c,
+              title: res.data.title || c.title,
+              messages: serverMessages,
+              facts: res.data.facts || [],
+              isExpired: false,
+            };
+          }
+          return c;
+        })
+      );
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeConversation?.backendId]);
 
   const handleNewChat = () => {
     if (activeConversation && activeConversation.messages.length === 0) {
@@ -111,6 +196,7 @@ export default function App() {
               backendId: responseData.conversation_id,
               isExpired: false,
               messages: [...updatedMessages, assistantMsg],
+              facts: responseData.facts || c.facts || [],
             };
           }
           return c;
@@ -232,3 +318,4 @@ export default function App() {
     </AppShell>
   );
 }
+

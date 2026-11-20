@@ -1,0 +1,81 @@
+import os
+import sqlite3
+from contextlib import contextmanager
+from typing import Generator
+
+DEFAULT_DB_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "redtape.db")
+)
+
+
+def get_db_path() -> str:
+    """Returns database path from environment or default."""
+    return os.environ.get("REDTAPE_DB_PATH", DEFAULT_DB_PATH)
+
+
+def get_connection(db_path: str = None) -> sqlite3.Connection:
+    """Creates a configured sqlite3 connection with WAL mode and foreign keys enabled."""
+    path = db_path or get_db_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    conn = sqlite3.connect(path, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA foreign_keys=ON;")
+    return conn
+
+
+@contextmanager
+def get_db(db_path: str = None) -> Generator[sqlite3.Connection, None, None]:
+    """Context manager for database connections ensuring proper commit and cleanup."""
+    conn = get_connection(db_path)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def init_db(db_path: str = None) -> None:
+    """Initializes SQLite schema, tables, and indexes."""
+    schema_sql = """
+    CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        current_intent TEXT,
+        intent_status TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        client_message_id TEXT,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        mode TEXT,
+        processing_status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS applicant_facts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        field_name TEXT NOT NULL,
+        field_value TEXT NOT NULL,
+        evidence TEXT,
+        source_message_id TEXT,
+        confidence_status TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(conversation_id, field_name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
+    CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);
+    """
+    with get_db(db_path) as conn:
+        conn.executescript(schema_sql)

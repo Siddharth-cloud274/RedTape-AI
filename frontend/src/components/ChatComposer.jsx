@@ -82,7 +82,7 @@ export default function ChatComposer({ onSendMessage, disabled = false, prefillV
 
       <div className="text-center mt-2">
         <p className="text-[11px] text-slate-500">
-          RedTape AI Demo Mode &bull; Real regulatory interview and verification activate in Milestone M3.
+          RedTape AI &bull; Intelligent conversational assistant for Indian citizen bureaucracy.
         </p>
       </div>
     </div>

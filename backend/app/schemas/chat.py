@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
+from app.schemas.facts import ExtractedFactItem, ApplicantFactResponse
 
 
 class IntentCategory(str, Enum):
@@ -80,6 +81,10 @@ class StructuredIntentResult(BaseModel):
         ...,
         description="Appropriate next conversational action."
     )
+    extracted_facts: List[ExtractedFactItem] = Field(
+        default_factory=list,
+        description="List of discrete verified facts extracted from user messages."
+    )
     reply: str = Field(
         ...,
         description="Concise, natural-language conversational response for the citizen."
@@ -119,3 +124,4 @@ class ChatResponse(BaseModel):
     reply: str
     mode: str = "gemini"
     intent: Optional[StructuredIntentResult] = None
+    facts: Optional[List[ApplicantFactResponse]] = None

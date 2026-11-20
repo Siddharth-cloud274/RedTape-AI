@@ -95,4 +95,44 @@ export async function sendChatMessageApi({ conversationId, clientMessageId, mess
   }
 }
 
+/**
+ * Retrieve conversation details, message history, and confirmed facts (GET /api/conversations/:id)
+ * 
+ * @param {string} conversationId
+ * @returns {Promise<{ success: boolean, data?: any, status?: number, error?: string }>}
+ */
+export async function getConversationHistory(conversationId) {
+  const url = `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`;
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    const responseData = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: responseData?.detail || `HTTP error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    return {
+      success: true,
+      status: response.status,
+      data: responseData,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: 0,
+      error: error.message || 'Network error: unable to load conversation history.',
+    };
+  }
+}
+
 export { API_BASE_URL };
