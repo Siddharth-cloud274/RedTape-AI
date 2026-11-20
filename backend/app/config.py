@@ -1,13 +1,15 @@
 from typing import List
+import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    HOST: str = "127.0.0.1"
-    PORT: int = 8000
+    HOST: str = os.getenv("HOST")
+    PORT: int = os.getenv("PORT")
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL")
 
     # Checks both the current directory and backend/ directory for .env
     model_config = SettingsConfigDict(
