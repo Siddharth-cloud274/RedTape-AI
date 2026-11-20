@@ -1,29 +1,33 @@
 /**
- * RedTape AI - Chat Transport Adapter
+ * RedTape AI - Chat Transport Layer
  * 
- * Milestone M2: Mock transport simulating message dispatch with async latency.
- * In Milestone M3, this will be replaced with real POST /api/chat integration.
+ * Milestone M3: Real HTTP transport sending requests to POST /api/chat.
+ * Does not fall back to mock responses on error.
  */
 
-const MOCK_RESPONSE_TEXT = 
-  'Demo mode: your message was received. AI assistance will be enabled in a later milestone.';
+import { sendChatMessageApi } from './api';
 
 /**
- * Sends a chat message to the transport layer.
+ * Dispatches a chat message to the FastAPI backend.
  * 
- * @param {string} conversationId 
- * @param {string} userText 
- * @returns {Promise<{ id: string, role: string, content: string, timestamp: string, isMock: boolean }>}
+ * @param {Object} params
+ * @param {string|null} params.conversationId - Backend session ID (or null for new)
+ * @param {string} params.clientMessageId - UUID for client message turn
+ * @param {string} params.message - Raw text message
+ * @returns {Promise<{ conversation_id: string, message_id: string, reply: string, mode: string }>}
  */
-export async function sendChatMessage(conversationId, userText) {
-  // Simulate network/generation latency (450ms)
-  await new Promise((resolve) => setTimeout(resolve, 450));
+export async function sendChatMessage({ conversationId, clientMessageId, message }) {
+  const result = await sendChatMessageApi({
+    conversationId,
+    clientMessageId,
+    message,
+  });
 
-  return {
-    id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    role: 'assistant',
-    content: MOCK_RESPONSE_TEXT,
-    timestamp: new Date().toISOString(),
-    isMock: true,
-  };
+  if (!result.success) {
+    const error = new Error(result.error || 'Failed to send message to backend.');
+    error.status = result.status;
+    throw error;
+  }
+
+  return result.data;
 }

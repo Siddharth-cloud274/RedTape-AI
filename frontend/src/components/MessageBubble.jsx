@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Bot, AlertCircle } from 'lucide-react';
+import { User, Bot, AlertCircle, RotateCcw } from 'lucide-react';
 
-export default function MessageBubble({ message, isTyping = false }) {
+export default function MessageBubble({ message, isTyping = false, onRetry }) {
   if (isTyping) {
     return (
       <div className="flex items-start gap-3 max-w-3xl mr-auto py-2">
@@ -18,6 +18,9 @@ export default function MessageBubble({ message, isTyping = false }) {
   }
 
   const isUser = message.role === 'user';
+  const isError = message.status === 'error';
+  const isPending = message.status === 'pending';
+
   const formattedTime = message.timestamp
     ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -28,7 +31,9 @@ export default function MessageBubble({ message, isTyping = false }) {
       <div
         className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-semibold ${
           isUser
-            ? 'bg-slate-700 text-slate-200'
+            ? isError
+              ? 'bg-rose-950/80 text-rose-300 border border-rose-800/60'
+              : 'bg-slate-700 text-slate-200'
             : 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-sm shadow-emerald-950'
         }`}
       >
@@ -37,14 +42,13 @@ export default function MessageBubble({ message, isTyping = false }) {
 
       {/* Bubble Content */}
       <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xl`}>
-        {/* Role & Demo Label for Assistant */}
+        {/* Role & Mode Badge for Assistant */}
         {!isUser && (
           <div className="flex items-center gap-2 mb-1 px-1">
             <span className="text-[11px] font-semibold text-slate-300">RedTape AI</span>
-            {message.isMock && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <AlertCircle className="w-2.5 h-2.5" />
-                Demo Mode
+            {message.mode === 'backend_stub' && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Backend Stub
               </span>
             )}
           </div>
@@ -53,15 +57,41 @@ export default function MessageBubble({ message, isTyping = false }) {
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words ${
             isUser
-              ? 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tr-sm'
+              ? isError
+                ? 'bg-rose-950/30 text-slate-200 border border-rose-800/60 rounded-tr-sm'
+                : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tr-sm'
               : 'bg-slate-900/90 text-slate-200 border border-slate-800 rounded-tl-sm shadow-sm'
           }`}
         >
           {message.content}
         </div>
 
+        {/* Status / Error & Retry Action */}
+        {isUser && isError && (
+          <div className="flex items-center gap-2 mt-1.5 px-1 text-xs text-rose-400">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate max-w-xs">{message.error || 'Failed to deliver message.'}</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => onRetry(message.id)}
+                className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded bg-rose-900/50 hover:bg-rose-800/60 text-[11px] text-rose-200 border border-rose-700/50 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {isUser && isPending && (
+          <span className="text-[10px] text-slate-500 mt-1 px-1 animate-pulse">
+            Sending to backend...
+          </span>
+        )}
+
         {/* Timestamp */}
-        {formattedTime && (
+        {formattedTime && !isPending && !isError && (
           <span className="text-[10px] text-slate-500 mt-1 px-1">
             {formattedTime}
           </span>
