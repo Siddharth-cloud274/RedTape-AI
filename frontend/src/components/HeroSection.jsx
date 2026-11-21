@@ -103,7 +103,7 @@ export default function HeroSection({ onDismiss }) {
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-4">
-            Demystifying Red Tape with{' '}
+             Simplifying Red Tape with{' '}
             <span className="bg-gradient-to-r from-crimson-400 via-rose-300 to-crimson-500 bg-clip-text text-transparent">
               Agentic AI
             </span>
