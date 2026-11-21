@@ -1,0 +1,877 @@
+MILESTONE M9 — HUMAN REVIEW, FINAL APPROVAL,
+OFFICIAL PORTAL HANDOFF & SUBMISSION GUIDANCE
+
+PROJECT: RedTape AI
+TRACK: Agentic AI — Hack-N-Pitch 2026
+
+STATUS:
+M0 through M8 completed and verified.
+
+OBJECTIVE:
+Implement the final human-in-the-loop checkpoint
+where users review their application details,
+inspect generated document drafts, approve a
+specific version, and receive verified
+government submission instructions.
+
+Preserve all completed M1-M8 functionality.
+
+CORE PRINCIPLE:
+RedTape AI prepares and guides.
+The citizen reviews, authorizes and submits.
+
+Do not automate actual government submission.
+
+==================================================
+PHASE A — INSPECTION AND PLANNING
+==================================================
+
+BEFORE modifying any code:
+
+1. Read AGENTS.md.
+2. Review existing project architecture.
+3. Inspect POST /api/chat.
+4. Inspect M5 conversation and applicant storage.
+5. Inspect M6 interview state management.
+6. Inspect M7 research evidence and citations.
+7. Inspect M8 document generation and versioning.
+8. Inspect existing document preview/download APIs.
+9. Inspect frontend chat components.
+10. Inspect existing security and API contracts.
+11. Inspect all automated tests.
+12. Identify reusable components.
+
+Produce a file-by-file implementation plan.
+
+Your plan must include:
+
+- Review state model
+- Approval state model
+- Document version binding
+- Source verification dependencies
+- Review UI design
+- API endpoints and request schemas
+- Online/offline handoff strategy
+- Consent and approval audit strategy
+- Error handling
+- Security limitations
+- Automated and browser test scenarios
+
+WAIT FOR EXPLICIT APPROVAL.
+
+Do not change code or install packages
+before I approve the plan.
+
+==================================================
+PHASE B — APPLICATION REVIEW ENGINE
+==================================================
+
+Implement a final application review engine.
+
+The engine must create a structured summary
+using existing verified data.
+
+Review information:
+
+1. Current government service
+2. Applicant's administrative goal
+3. Issuing government authority
+4. Applicable jurisdiction
+5. Applicant information collected
+6. Required information still missing
+7. Conflicting information
+8. Official requirements from M7
+9. Supporting documents from M7
+10. Current generated PDF draft, if available
+11. Current document version
+12. Official sources and verification dates
+13. Applicable online or offline procedure
+14. Information that remains unverified
+
+Distinguish clearly between:
+
+- User-provided information
+- Confirmed structured applicant facts
+- Verified government requirements
+- AI-generated explanations
+- Unverified or conflicting information
+
+Never turn inferred information into
+confirmed applicant information.
+
+Do not mark a requirement complete unless
+the existing validated evidence supports it.
+
+If required information remains missing,
+show what must be resolved.
+
+For services without M8 PDF support,
+allow a guidance-only review summary,
+but never pretend that a form was generated.
+
+==================================================
+PHASE C — REVIEW STATE MACHINE
+==================================================
+
+Create a controlled review workflow.
+
+Suggested review states:
+
+- review_not_started
+- review_pending
+- review_in_progress
+- review_changes_requested
+- review_blocked
+- review_ready
+- user_approved
+- approval_invalidated
+- handoff_ready
+- handoff_opened
+
+These states represent RedTape AI's
+internal preparation workflow.
+
+They do not represent government
+application status.
+
+Backend rules:
+
+1. Only validated transitions are allowed.
+2. User approval requires explicit action.
+3. The AI cannot approve for the user.
+4. Invalid state transitions return errors.
+5. Incomplete drafts cannot be approved
+   as complete application packages.
+6. Corrections invalidate relevant approvals.
+7. Stale document versions cannot be approved.
+8. Failed approval writes must not leave
+   inconsistent state.
+9. A review may be reopened for corrections.
+10. State persists after backend restart.
+
+Keep review state separate from
+government submission state.
+
+Do not create a fake government
+"Application Approved" status.
+
+==================================================
+PHASE D — EXPLICIT HUMAN APPROVAL
+==================================================
+
+Implement a user-controlled approval checkpoint.
+
+Before approval, display:
+
+- Application summary
+- Current document version
+- Collected applicant information
+- Missing information warnings
+- Verified source references
+- Applicable submission procedure
+- Clear draft status
+
+Require the user to:
+
+1. Open or inspect the current review summary.
+2. Confirm that the entered details are correct.
+3. Acknowledge that the document has not
+   been officially submitted.
+4. Explicitly click an approval control.
+
+Approval must be opt-in.
+
+Do not preselect approval checkboxes.
+
+Do not infer approval from:
+- Sending a message
+- Downloading a PDF
+- Opening a source
+- Clicking an external portal link
+
+Suggested approval declaration:
+
+"I have reviewed the application information
+and approve this draft for my own use.
+I understand that it has not been submitted
+to the government."
+
+Approval must be bound to:
+
+- Conversation ID
+- Review ID
+- Document ID, if applicable
+- Document version
+- Document content hash, if available
+- Relevant applicant-data snapshot/hash
+- Timestamp
+- Explicit user action
+
+No Gemini-generated message may set
+user_approved automatically.
+
+==================================================
+PHASE E — DOCUMENT CORRECTION & REAPPROVAL
+==================================================
+
+Reuse the M8 document versioning system.
+
+Example:
+
+USER:
+My father's name is incorrect.
+
+EXPECTED:
+
+1. Return to correction workflow.
+2. Update the relevant applicant fact using
+   existing memory reconciliation.
+3. Preserve evidence of the correction.
+4. Invalidate the previous approval.
+5. Mark the old draft outdated.
+6. Regenerate the draft when appropriate.
+7. Create a new document version.
+8. Require the user to review again.
+9. Require fresh approval of the new version.
+
+Never silently change an approved document.
+
+Never allow an outdated approved version
+to be presented as the latest approved draft.
+
+If official source changes materially affect
+the application, flag the existing approval
+for fresh review.
+
+==================================================
+PHASE F — GOVERNMENT HANDOFF ENGINE
+==================================================
+
+Implement two submission guidance modes.
+
+MODE 1: ONLINE HANDOFF
+
+Examples:
+- Applicable WB municipal trade licence
+- Applicable FSSAI registration
+
+The system should:
+
+1. Identify the official portal from M7 evidence.
+2. Validate the exact official URL.
+3. Confirm service and jurisdiction applicability.
+4. Display relevant documented submission steps.
+5. Explain what information or documents the
+   user may need to provide on that portal.
+6. Provide an explicit "Open Official Portal" action.
+7. Open the link only after the user's click.
+8. Explain that the user completes login,
+   OTP, CAPTCHA and final submission there.
+
+No automated submission is allowed.
+
+MODE 2: OFFLINE HANDOFF
+
+Examples:
+- Kolkata Collectorate domicile certificate
+- Kolkata Collectorate income certificate
+
+The system should:
+
+1. Identify the applicable issuing office.
+2. Display verified official instructions.
+3. Show the relevant form and supporting
+   document checklist.
+4. Display submission method and document
+   copy requirements when sourced.
+5. Display office details when verified.
+6. Provide an official source link.
+7. Allow downloading the approved draft.
+8. Explain that the applicant completes
+   signature and physical submission.
+
+Do not offer "Apply Online" when the
+verified workflow requires offline submission.
+
+If submission mode is unknown,
+show "Submission method not verified".
+
+Do not guess an authority or office address.
+
+==================================================
+PHASE G — OFFICIAL SOURCE VERIFICATION
+==================================================
+
+Reuse the M7 research infrastructure.
+
+Before generating handoff guidance:
+
+1. Retrieve the current verified service context.
+2. Check the issuing authority.
+3. Check jurisdiction applicability.
+4. Check source provenance.
+5. Check relevant effective dates.
+6. Check availability of the official URL.
+7. Identify missing or conflicting evidence.
+8. Confirm the documented submission mode.
+
+Official starting sources:
+
+Kolkata Domicile:
+https://kolkatacollectorate.wb.gov.in/domicile-certificate/
+
+Kolkata Income:
+https://kolkatacollectorate.wb.gov.in/income-certificate/
+
+West Bengal Municipal Trade Licence:
+https://udma.wb.gov.in/page/cms/trade_license_procedure_44b32d
+
+West Bengal e-District:
+https://edistrict.wb.gov.in/
+
+FSSAI FoSCoS:
+https://foscos.fssai.gov.in/
+
+These URLs are approved source seeds.
+
+Use the M7 evidence records rather than
+blindly assuming every seed applies.
+
+Do not invent submission links.
+
+Do not use unrelated third-party portals.
+
+If official instructions conflict, preserve
+the conflicting evidence and request review.
+
+==================================================
+PHASE H — TRANSPARENT SUBMISSION GUIDANCE
+==================================================
+
+Generate clear, actionable explanations.
+
+For online workflows, distinguish:
+
+1. What RedTape AI has prepared
+2. What the user still needs to do
+3. What the official portal handles
+4. What authentication may be required
+5. When the application is actually submitted
+
+For offline workflows, distinguish:
+
+1. Downloaded draft
+2. Required manual signatures, if applicable
+3. Supporting documents
+4. Applicable office/section
+5. Required number of document sets, if verified
+6. User-controlled physical submission
+
+Do not invent fees, deadlines or
+processing times.
+
+Every substantive government instruction
+must have supporting M7 evidence.
+
+Never describe a prepared PDF draft
+as a government-issued certificate.
+
+==================================================
+PHASE I — SUBMISSION STATUS INTEGRITY
+==================================================
+
+RedTape AI does not submit applications in M9.
+
+Implement internal preparation statuses:
+
+- draft_prepared
+- awaiting_user_review
+- reviewed
+- approved_for_user_use
+- handoff_ready
+- external_portal_opened
+- offline_instructions_displayed
+
+Do not use "submitted" or "government approved"
+for any of the above.
+
+Opening an external site does not prove submission.
+
+Downloading a PDF does not prove submission.
+
+If a user voluntarily says they submitted
+their application, that is self-reported
+information, not government verification.
+
+Do not create government submission IDs,
+acknowledgements or receipts.
+
+Any future official submission tracking
+must be a separately verified feature.
+
+==================================================
+PHASE J — API INTEGRATION
+==================================================
+
+Preserve all existing M1-M8 endpoints.
+
+Preserve:
+
+POST /api/chat
+
+Do not break existing chat contracts,
+session IDs, message IDs, retries or memory.
+
+Suggested additional endpoints:
+
+GET /api/reviews/{conversation_id}
+- Return current application review summary.
+
+POST /api/reviews/{conversation_id}/approve
+- Record explicit approval of a specific
+  reviewed snapshot/document version.
+
+POST /api/reviews/{conversation_id}/request-changes
+- Reopen review and invalidate approval.
+
+GET /api/reviews/{conversation_id}/handoff
+- Return applicable verified submission guidance.
+
+Suggested handoff object:
+
+{
+  "handoff_type": "offline",
+  "service_id": "wb_domicile",
+  "review_status": "user_approved",
+  "government_submission_status": "not_verified",
+  "official_source_url": "verified_url",
+  "portal_url": null,
+  "instructions": [],
+  "warnings": [],
+  "last_verified_at": "ISO-8601"
+}
+
+This is an illustrative schema.
+
+Choose names compatible with the
+existing application architecture.
+
+API requirements:
+
+1. Validate review and conversation IDs.
+2. Validate document version on approval.
+3. Make approval actions idempotent.
+4. Prevent stale version approvals.
+5. Prevent duplicate audit records.
+6. Preserve transactional consistency.
+7. Reject unauthorized access.
+8. Return structured errors.
+9. Avoid logging sensitive applicant data.
+10. Never expose internal storage paths.
+
+==================================================
+PHASE K — FRONTEND REVIEW EXPERIENCE
+==================================================
+
+Preserve the existing ChatGPT-style UI.
+
+Do not introduce:
+- Mandatory service-selection homepage
+- Government department selection menus
+- Full frontend redesign
+- Unrelated dashboard features
+
+Introduce an in-chat review component.
+
+Suggested component sections:
+
+APPLICATION SUMMARY
+- Service name
+- Applicant information
+- Jurisdiction
+- Document version
+
+VERIFIED REQUIREMENTS
+- Official source references
+- Supporting documents
+- Uncertainty warnings
+
+DOCUMENT REVIEW
+- Preview current draft
+- Download draft
+- Edit information
+- Request regeneration
+
+HUMAN APPROVAL
+- Explicit confirmation checkbox
+- Approve current draft action
+- Approval status
+
+SUBMISSION GUIDANCE
+- Online or offline mode
+- Official portal/source link
+- Remaining user actions
+- Not-submitted notice
+
+The review component must be accessible
+from the ongoing chat conversation.
+
+The user should not need to restart
+the application or choose a service again.
+
+Maintain responsive mobile/desktop layouts.
+
+==================================================
+PHASE L — AUDIT TRAIL
+==================================================
+
+Create an internal audit trail for:
+
+- Review created
+- Review opened
+- Correction requested
+- Draft regenerated
+- Approval granted
+- Approval invalidated
+- Handoff instructions displayed
+- Official portal link opened
+
+Record:
+
+- Event ID
+- Conversation ID
+- Review/document version
+- Action type
+- Timestamp
+- Relevant state change
+
+Record only necessary metadata.
+
+Avoid logging complete applicant details.
+
+An audit record is evidence of an action
+inside RedTape AI.
+
+It is not proof of government submission.
+
+Preserve consistency across retries.
+
+==================================================
+PHASE M — SECURITY & PRIVACY
+==================================================
+
+Preserve all previous security controls.
+
+Requirements:
+
+1. Never collect government OTPs.
+2. Never request government passwords.
+3. Never automate CAPTCHA bypass.
+4. Never sign documents on behalf of users.
+5. Never claim government approval.
+6. Never submit an application automatically.
+7. Keep API keys backend-only.
+8. Use approved government URL destinations.
+9. Prevent open redirects.
+10. Prevent unauthorized review/document access.
+11. Protect documents against path traversal.
+12. Validate version and approval identifiers.
+13. Avoid exposing personal information in logs.
+14. Do not place applicant details in URLs.
+15. Use synthetic data for hackathon tests.
+16. Preserve M7 source validation.
+
+IMPORTANT:
+
+If full authentication is not implemented,
+the application remains a limited demo.
+
+Do not expose real applicant data or documents
+publicly without proper access control.
+
+==================================================
+PHASE N — ERROR HANDLING
+==================================================
+
+Handle:
+
+1. Missing review session.
+2. Missing or outdated PDF version.
+3. Incomplete applicant information.
+4. Conflicting applicant facts.
+5. Unverified government source.
+6. Incorrect jurisdiction.
+7. Unsupported handoff mode.
+8. Official portal unavailable.
+9. Approval submitted twice.
+10. Approval of stale document.
+11. Corrections after approval.
+12. SQLite/database error.
+13. Backend restart.
+14. Gemini unavailable or quota exceeded.
+15. Unauthenticated/unauthorized access.
+16. External website access failure.
+
+Never create a fake approval.
+
+Do not discard existing valid documents.
+
+Show clear recovery instructions.
+
+Do not silently substitute unofficial URLs.
+
+==================================================
+PHASE O — AUTOMATED TESTING
+==================================================
+
+Use mocked Gemini and HTTP responses
+for deterministic automated tests.
+
+REVIEW TESTS:
+
+1. Review summary generated correctly.
+2. Confirmed applicant facts displayed.
+3. Missing fields displayed.
+4. Conflicting fields flagged.
+5. Current PDF version identified.
+6. Outdated PDF blocked.
+7. Official source links retained.
+8. Unsupported jurisdiction flagged.
+
+APPROVAL TESTS:
+
+9. Approval requires explicit action.
+10. Approval checkbox not preselected.
+11. Incomplete review cannot be approved
+    as a complete application package.
+12. Approved version recorded correctly.
+13. Duplicate approval is idempotent.
+14. Correction invalidates approval.
+15. Regeneration requires reapproval.
+16. Approval survives backend restart.
+17. AI cannot approve automatically.
+
+HANDOFF TESTS:
+
+18. Online workflow gives correct portal.
+19. Offline workflow gives correct instructions.
+20. Offline workflow does not show false
+    online submission action.
+21. Unverified portal URL rejected.
+22. Wrong jurisdiction rejected.
+23. Missing source evidence handled.
+24. External link requires user action.
+25. Opening portal does not mark submitted.
+26. Downloading draft does not mark submitted.
+27. Government approval never fabricated.
+
+AUDIT AND SECURITY TESTS:
+
+28. Review events logged correctly.
+29. No duplicate audit events on retry.
+30. Stale approval race prevented.
+31. Wrong conversation access rejected.
+32. No sensitive data in public responses.
+33. Unsafe redirect blocked.
+34. Invalid review/document IDs rejected.
+35. Database errors handled safely.
+
+REGRESSION:
+
+36. M1 backend health check.
+37. M2 conversational frontend.
+38. M3 message idempotency and sessions.
+39. M4 Gemini intent recognition.
+40. M5 persistent memory.
+41. M6 adaptive interview.
+42. M7 research and citations.
+43. M8 PDF generation and preview.
+44. Frontend production build.
+
+Run the existing test suite.
+
+Do not claim tests passed unless executed.
+
+==================================================
+PHASE P — BROWSER ACCEPTANCE TESTS
+==================================================
+
+SCENARIO A — OFFLINE SUBMISSION
+
+USER:
+I need a domicile certificate for higher studies.
+
+USER:
+I'm within the applicable Kolkata jurisdiction.
+
+EXPECTED:
+
+- M4 identifies the intent.
+- M5 remembers applicant facts.
+- M6 collects missing context.
+- M7 provides sourced requirements.
+- M8 prepares the correct PDF draft.
+- M9 presents a final review.
+
+User reviews the PDF and approves it.
+
+EXPECTED:
+- Approval is recorded.
+- Approved document version is displayed.
+- Offline instructions are shown.
+- Applicable official government source linked.
+- Signature remains user-controlled.
+- Status remains NOT SUBMITTED.
+
+SCENARIO B — ONLINE SUBMISSION
+
+USER:
+My father needs a new trade licence
+for his shop in a supported WB municipality.
+
+EXPECTED:
+
+- Correct intent detected.
+- Relevant jurisdiction verified.
+- Official municipal guidance displayed.
+- No FSSAI substitution.
+- Guidance-only review where PDF is unsupported.
+- Correct official online portal offered.
+- User clicks to open the portal.
+- RedTape AI does not submit anything.
+- No fake government application status.
+
+SCENARIO C — CORRECTION
+
+1. Generate an application draft.
+2. Review and approve.
+3. Correct an applicant detail.
+4. Verify approval becomes invalid.
+5. Regenerate the document.
+6. Review the new version.
+7. Approve again.
+
+SCENARIO D — SOURCE FAILURE
+
+Simulate a missing or conflicting
+official submission source.
+
+EXPECTED:
+
+- No invented portal URL.
+- Clear uncertainty message.
+- Existing application data preserved.
+- Manual verification requested where needed.
+
+SCENARIO E — GEMINI FAILURE
+
+Simulate a 429 RESOURCE_EXHAUSTED error.
+
+EXPECTED:
+- No fabricated AI completion.
+- Review state remains consistent.
+- Clear failure message and recovery path.
+- No duplicate approval on retry.
+
+Also verify:
+
+- Desktop and mobile layout.
+- Browser refresh restoration.
+- New Chat and conversation switching.
+- Document preview/download.
+- Backend connectivity indicator.
+- Browser console/network errors.
+
+==================================================
+STRICT EXCLUSIONS
+==================================================
+
+DO NOT IMPLEMENT:
+
+- Automated government portal submission
+- Government portal login automation
+- OTP entry or collection
+- CAPTCHA solving or bypass
+- Digital signature creation
+- Government payment processing
+- Government approval tracking
+- Fake application reference numbers
+- Automatic official website form submission
+- New unrelated government services
+- Major frontend redesign
+- New authentication platform
+- Unrestricted browser automation
+- Unnecessary framework migrations
+
+Do not begin M10.
+
+==================================================
+M9 ACCEPTANCE CRITERIA
+==================================================
+
+1. Review summary engine implemented.
+2. Applicant facts displayed correctly.
+3. Official requirements and citations retained.
+4. Missing/conflicting fields flagged.
+5. Explicit human approval implemented.
+6. Approval linked to exact document version.
+7. Corrections invalidate old approvals.
+8. PDF regeneration requires fresh review.
+9. Review state persists in SQLite.
+10. Online portal handoff implemented.
+11. Offline submission guidance implemented.
+12. Handoff uses verified official sources.
+13. Portal opens only through user action.
+14. No automated official submission.
+15. No false government approval/status.
+16. Audit events recorded consistently.
+17. API backward compatibility preserved.
+18. Existing chat interface preserved.
+19. Access and security tests pass.
+20. M1-M8 regression tests pass.
+21. Frontend production build succeeds.
+22. End-to-end browser verification succeeds.
+23. Error and Gemini-quota cases handled.
+24. No out-of-scope features introduced.
+
+==================================================
+FINAL REPORT
+==================================================
+
+After implementation, report:
+
+1. Files created and modified.
+2. Final review/approval architecture.
+3. Review state transitions.
+4. SQLite schema changes.
+5. Document version binding.
+6. API endpoints.
+7. Online/offline handoff design.
+8. Source and citation verification.
+9. Consent and approval audit behavior.
+10. Actual automated test results.
+11. Browser verification results.
+12. Security and access-control limitations.
+13. Known unresolved issues.
+14. M1-M8 regression confirmation.
+15. Final M9 acceptance result.
+
+SECURITY CHECK BEFORE ANY COMMIT:
+
+Verify that:
+- .env files are excluded from Git.
+- .env.example contains placeholders only.
+- No API keys are staged or committed.
+- Generated applicant PDFs are not tracked.
+- No real applicant data is committed.
+
+Do not automatically push to Git.
+
+STOP AFTER M9.
+
+DO NOT BEGIN M10 WITHOUT EXPLICIT APPROVAL.
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-21T09:37:21+05:30.
+</ADDITIONAL_METADATA>

@@ -1,0 +1,23 @@
+MILESTONE M7 — OFFICIAL CITATIONS, CIVIC RESEARCH & OPEN CHATBOT KNOWLEDGE
+
+PROJECT: RedTape AI
+TRACK: Agentic AI — Hack-N-Pitch 2026
+
+STATUS:
+M0 through M6 completed and verified.
+
+OBJECTIVE:
+Enhance RedTape AI with authoritative civic research, verified government resources, and open civic assistance.
+
+REQUIREMENTS:
+1. Curate verified official resources database with issuing authorities, official portal URLs, verified application forms, and submission instructions for core services (West Bengal Domicile Certificate, Kolkata Municipal Corporation Trade Licence, FSSAI Food Safety Registration, West Bengal Income Certificate).
+2. Adaptive Research Link Surfacing:
+   - Provide high-level guidance during initial discovery.
+   - Surface official resources and detailed procedural sections only when relevant or requested by the user, rather than cluttering every interview turn.
+3. Open Civic Chatbot (Universal Coverage):
+   - Support open-ended citizen queries across pan-India and state civic services (Passport Seva, Driving Licence / Parivahan, Aadhaar, PAN card, Voter ID, etc.).
+   - If an official resource is independently verified, mark as 'Verified Official Resource' with official domain citations.
+   - If a service or regional variation is not pre-verified in the local verified registry, clearly flag the resource as 'Probable / General Civic Guidance' to prevent misleading citizens.
+4. Privacy & Anti-Hallucination:
+   - Never invent government forms, links, or procedures.
+   - Do not claim government endorsement or automated filing.
