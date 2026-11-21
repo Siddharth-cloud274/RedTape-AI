@@ -13,6 +13,11 @@ FIELD_QUESTION_TEMPLATES: Dict[str, str] = {
     "approximate_annual_turnover": "What is the approximate annual turnover of your food business?",
     "operation_status": "Is your business already operating, or are you currently setting it up?",
     "service_needed": "Could you clarify which specific government certificate, licence, or service you need assistance with?",
+    "applicant_name": "Could you please share your full name as it should appear on the official application?",
+    "father_name": "What is your father's or guardian's full name?",
+    "date_of_birth": "What is your date of birth (in DD/MM/YYYY format)?",
+    "present_address": "What is your complete present residential address in Kolkata?",
+    "stay_duration": "How many years have you been residing in West Bengal?",
 }
 
 

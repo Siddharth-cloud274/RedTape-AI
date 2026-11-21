@@ -10,6 +10,10 @@ INTENT_REQUIRED_CONTEXT: Dict[IntentCategory, List[str]] = {
     IntentCategory.WB_DOMICILE_CERTIFICATE: [
         "location",
         "application_purpose",
+        "applicant_name",
+        "father_name",
+        "date_of_birth",
+        "present_address",
     ],
     IntentCategory.FSSAI_REGISTRATION: [
         "business_type",
@@ -80,6 +84,19 @@ FIELD_SYNONYMS: Dict[str, Set[str]] = {
         "business_stage",
     },
     "service_needed": {"service_needed", "certificate_type"},
+    "applicant_name": {"applicant_name", "name", "full_name", "citizen_name"},
+    "father_name": {"father_name", "parent_name", "guardian_name", "father"},
+    "date_of_birth": {"date_of_birth", "dob", "birth_date", "birthdate"},
+    "present_address": {
+        "present_address",
+        "address",
+        "current_address",
+        "residential_address",
+        "residence_location",
+        "residence",
+        "domicile_address",
+    },
+    "stay_duration": {"stay_duration", "duration_of_stay", "stay_years", "years_in_state"},
 }
 
 

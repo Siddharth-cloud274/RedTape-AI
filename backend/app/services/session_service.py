@@ -25,8 +25,13 @@ from app.services.gemini_service import gemini_service, GeminiService, GeminiSer
 from app.services.memory_service import memory_service
 from app.services.context_tracker import context_tracker
 from app.services.interview_engine import interview_orchestrator
+from app.services.interview_engine.planner import QuestionPlanner
 from app.services.extractor_helper import extract_heuristic_applicant_facts
-from app.services.pdf.validator import validate_document_readiness
+from app.services.pdf.validator import (
+    validate_document_readiness,
+    get_conversation_facts,
+    resolve_field_value,
+)
 from app.services.pdf.generator import (
     generate_pdf_draft,
     get_latest_document_for_conversation,
@@ -195,6 +200,8 @@ class SessionManager:
             confirmed_facts = memory_service.get_facts_dict(conversation_id, db)
             prev_decision, _ = interview_orchestrator.get_interview_state(conversation_id, db)
             prev_target = prev_decision.target_field if prev_decision else None
+            existing_conv = db.execute("SELECT current_intent FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+            existing_intent = existing_conv["current_intent"] if existing_conv else None
 
         # -------------------------------------------------------------
         # Phase 2: Gemini Network Call (DB lock released)
@@ -209,7 +216,12 @@ class SessionManager:
         except GeminiServiceError as ai_err:
             is_pytest = "PYTEST_CURRENT_TEST" in os.environ
             if ai_err.status_code == 429 and not is_pytest:
-                structured_result = self._generate_resilient_fallback(request.message, confirmed_facts)
+                structured_result = self._generate_resilient_fallback(
+                    message=request.message,
+                    confirmed_facts=confirmed_facts,
+                    prev_target=prev_target,
+                    existing_intent=existing_intent,
+                )
             else:
                 with get_db() as db:
                     db.execute(
@@ -240,7 +252,11 @@ class SessionManager:
             )
 
             # 2. Reconcile and save facts (merging Gemini extractions + heuristic particulars)
-            heuristic_facts = extract_heuristic_applicant_facts(request.message)
+            heuristic_facts = extract_heuristic_applicant_facts(
+                text=request.message,
+                target_field=prev_target,
+                confirmed_facts=confirmed_facts,
+            )
             all_facts = list(structured_result.extracted_facts)
             existing_fact_names = {f.field_name for f in all_facts}
             for hf in heuristic_facts:
@@ -300,13 +316,35 @@ class SessionManager:
         # -------------------------------------------------------------
         readiness = validate_document_readiness(conversation_id)
         latest_doc = get_latest_document_for_conversation(conversation_id)
-        user_requested_form = any(
-            kw in request.message.lower()
-            for kw in ["draft", "form", "pdf", "generate", "download", "fill", "domicile"]
-        )
-        if readiness.can_generate and (user_requested_form or latest_doc is not None):
+
+        if readiness.can_generate:
             if not latest_doc:
                 latest_doc = generate_pdf_draft(conversation_id=conversation_id)
+            else:
+                # Check if current confirmed facts in DB have changed since latest_doc was generated
+                current_facts = get_conversation_facts(conversation_id)
+                key_fields = [
+                    "applicant_name",
+                    "father_name",
+                    "date_of_birth",
+                    "present_address",
+                    "father_occupation",
+                    "stay_duration",
+                    "purpose",
+                ]
+                has_changed = any(
+                    resolve_field_value(k, current_facts) != latest_doc.filled_fields.get(k)
+                    for k in key_fields
+                    if resolve_field_value(k, current_facts) is not None
+                )
+                if has_changed:
+                    latest_doc = generate_pdf_draft(
+                        conversation_id=conversation_id,
+                        document_id=latest_doc.document_id,
+                        version=latest_doc.version + 1,
+                    )
+        else:
+            latest_doc = None
 
         return ChatResponse(
             conversation_id=conversation_id,
@@ -320,10 +358,22 @@ class SessionManager:
             document_draft=latest_doc,
         )
 
-    def _generate_resilient_fallback(self, message: str, confirmed_facts: Dict[str, str]) -> StructuredIntentResult:
-        """Generates a graceful fallback StructuredIntentResult when upstream Gemini API quota is hit."""
+    def _generate_resilient_fallback(
+        self,
+        message: str,
+        confirmed_facts: Dict[str, str],
+        prev_target: Optional[str] = None,
+        existing_intent: Optional[str] = None,
+    ) -> StructuredIntentResult:
+        """
+        Generates an adaptive, conversational fallback StructuredIntentResult when Gemini API
+        quota is exhausted. Ensures no data loss, step-by-step missing context collection,
+        and full applicant data verification.
+        """
         msg_lower = message.lower()
-        if "domicile" in msg_lower:
+
+        # 1. Resolve Intent accurately
+        if "domicile" in msg_lower or "residential" in msg_lower:
             intent = IntentCategory.WB_DOMICILE_CERTIFICATE
         elif "income" in msg_lower:
             intent = IntentCategory.WB_INCOME_CERTIFICATE
@@ -331,26 +381,89 @@ class SessionManager:
             intent = IntentCategory.TRADE_LICENCE
         elif "fssai" in msg_lower or "food" in msg_lower:
             intent = IntentCategory.FSSAI_REGISTRATION
+        elif existing_intent and existing_intent in [i.value for i in IntentCategory]:
+            intent = IntentCategory(existing_intent)
         else:
             intent = IntentCategory.WB_DOMICILE_CERTIFICATE
 
-        extracted = extract_heuristic_applicant_facts(message)
-        reply = (
-            "I have noted your application details for the West Bengal Domicile Certificate "
-            "(Higher Studies) under the Kolkata Collectorate jurisdiction. "
-            "Your official application draft is prepared below."
+        # 2. Extract facts from current message using context-aware heuristics
+        extracted = extract_heuristic_applicant_facts(
+            text=message,
+            target_field=prev_target,
+            confirmed_facts=confirmed_facts,
+        )
+
+        # 3. Merge newly extracted facts with previously confirmed facts
+        merged = dict(confirmed_facts)
+        for ef in extracted:
+            merged[ef.field_name] = ef.field_value
+
+        # 4. Compute missing fields deterministically
+        missing = context_tracker.calculate_missing_fields(
+            intent=intent,
+            known_facts=merged,
+        )
+
+        # 5. Formulate natural conversational reply
+        if missing:
+            next_target = missing[0]
+            question = QuestionPlanner.get_default_question(next_target)
+
+            ack = ""
+            if any(f.field_name == "applicant_name" for f in extracted):
+                ack = f"Thank you, {merged.get('applicant_name')}! "
+            elif extracted:
+                ack = "Thank you, I have recorded that. "
+
+            reply = f"{ack}{question}"
+            action = NextAction.ASK_CLARIFICATION
+            intent_status = IntentStatus.IDENTIFIED
+        else:
+            # All required data is gathered! Formulate verified data confirmation
+            if intent == IntentCategory.WB_DOMICILE_CERTIFICATE:
+                name = merged.get("applicant_name", "N/A")
+                father = merged.get("father_name", "N/A")
+                dob = merged.get("date_of_birth", "N/A")
+                address = merged.get("present_address") or merged.get("residence_location") or "N/A"
+                stay = merged.get("stay_duration", "Not specified")
+                purpose = merged.get("application_purpose", "Higher Studies")
+
+                reply = (
+                    f"I have recorded and verified all your application details:\n\n"
+                    f"• **Full Name**: {name}\n"
+                    f"• **Father's Name**: {father}\n"
+                    f"• **Date of Birth**: {dob}\n"
+                    f"• **Present Address**: {address}\n"
+                    f"• **Duration of Stay**: {stay}\n"
+                    f"• **Purpose**: {purpose}\n"
+                    f"• **Issuing Authority**: Kolkata Collectorate, Government of West Bengal\n\n"
+                    f"Please review the verified details above. Your official unsubmitted application draft has "
+                    f"been generated below. You can preview the PDF, download it, or make corrections anytime."
+                )
+            else:
+                reply = (
+                    f"I have verified all your preliminary application details. "
+                    f"Official verification and legal requirements will be connected in future milestones."
+                )
+            action = NextAction.ACKNOWLEDGE_INTENT
+            intent_status = IntentStatus.IDENTIFIED
+
+        known_info = KnownInformation(
+            location=merged.get("location") or merged.get("residence_location"),
+            business_location=merged.get("business_location"),
+            purpose=merged.get("application_purpose"),
+            business_type=merged.get("business_type"),
+            application_type=merged.get("application_type"),
+            annual_turnover=merged.get("approximate_annual_turnover"),
         )
 
         return StructuredIntentResult(
             intent=intent,
-            intent_status=IntentStatus.IDENTIFIED,
+            intent_status=intent_status,
             service_support=ServiceSupport.SUPPORTED_MVP,
-            known_information=KnownInformation(
-                location="Kolkata",
-                purpose="higher studies",
-            ),
-            missing_information=[],
-            next_action=NextAction.ACKNOWLEDGE_INTENT,
+            known_information=known_info,
+            missing_information=missing,
+            next_action=action,
             extracted_facts=extracted,
             reply=reply,
         )

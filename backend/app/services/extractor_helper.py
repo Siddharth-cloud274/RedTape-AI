@@ -1,18 +1,23 @@
 import re
-from typing import List
+from typing import Dict, List, Optional
 from app.schemas.facts import ExtractedFactItem
 
 
-def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
+def extract_heuristic_applicant_facts(
+    text: str,
+    target_field: Optional[str] = None,
+    confirmed_facts: Optional[Dict[str, str]] = None,
+) -> List[ExtractedFactItem]:
     """
-    Extracts explicit applicant particulars (name, father, DOB, address, duration)
-    from natural language citizen messages to ensure no form details are lost.
+    Extracts explicit applicant particulars (name, father, DOB, address, duration, location, purpose)
+    from natural language citizen messages, taking into account the currently targeted question.
     """
     facts: List[ExtractedFactItem] = []
     text_clean = text.strip()
+    if not text_clean:
+        return facts
 
     # 1. Applicant Name
-    # Matches: "my name is Sourav Mukherjee", "name: Sourav Mukherjee", "I am Sourav Mukherjee"
     name_match = re.search(
         r"(?:my name is|i am|name[:\s]+)\s*([A-Za-z]+(?:\s+[A-Za-z]+){1,3})",
         text_clean,
@@ -20,7 +25,6 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
     )
     if name_match:
         val = name_match.group(1).strip()
-        # Avoid common false positives
         if val.lower() not in ["applying", "looking", "interested", "a student", "an applicant"]:
             facts.append(
                 ExtractedFactItem(
@@ -32,7 +36,6 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
             )
 
     # 2. Father's Name
-    # Matches: "father is Debabrata Mukherjee", "father's name is Debabrata Mukherjee", "father: Debabrata Mukherjee"
     father_match = re.search(
         r"(?:father(?:'s)?(?:\s+name)?(?:\s+is|:))\s*([A-Za-z]+(?:\s+[A-Za-z]+){1,3})",
         text_clean,
@@ -50,7 +53,6 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
         )
 
     # 3. Date of Birth
-    # Matches: "date of birth is 14/05/2003", "dob is 14/05/2003", "dob: 2003-05-14"
     dob_match = re.search(
         r"(?:date of birth|dob|birth\s*date)(?:\s+is|:)?\s*([0-9]{1,4}[\/\-\.][0-9]{1,2}[\/\-\.][0-9]{1,4})",
         text_clean,
@@ -68,7 +70,6 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
         )
 
     # 4. Present Address
-    # Matches: "present address is 12 Park Street, Kolkata 700016", "address: 12 Park Street..."
     addr_match = re.search(
         r"(?:present address|permanent address|current address|address)(?:\s+is|:)\s*([^.;\n]+(?:,\s*[^.;\n]+)*)",
         text_clean,
@@ -76,7 +77,6 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
     )
     if addr_match:
         val = addr_match.group(1).strip()
-        # Clean trailing connectors
         val = re.sub(r"\s+(?:and|my|father|dob|date of birth)\b.*$", "", val, flags=re.IGNORECASE).strip()
         if len(val) > 4:
             facts.append(
@@ -104,5 +104,73 @@ def extract_heuristic_applicant_facts(text: str) -> List[ExtractedFactItem]:
                 is_correction=False,
             )
         )
+
+    # 6. Location / District
+    loc_match = re.search(
+        r"\b(kolkata|calcutta|salt lake|alipore|bowbazar|tollygunge|howrah|barrackpore|asansol|siliguri|darjeeling|durgapur|burdwan|bardhaman|malda|murshidabad|nadia|hooghly|medinipur)\b",
+        text_clean,
+        re.IGNORECASE,
+    )
+    if loc_match:
+        val = loc_match.group(1).title()
+        facts.append(
+            ExtractedFactItem(
+                field_name="location",
+                field_value=val,
+                evidence=loc_match.group(0),
+                is_correction=False,
+            )
+        )
+
+    # 7. Purpose
+    purpose_match = re.search(
+        r"\b(higher studies|college admission|university admission|scholarship|employment|job application|admission)\b",
+        text_clean,
+        re.IGNORECASE,
+    )
+    if purpose_match:
+        val = purpose_match.group(1).title()
+        facts.append(
+            ExtractedFactItem(
+                field_name="application_purpose",
+                field_value=val,
+                evidence=purpose_match.group(0),
+                is_correction=False,
+            )
+        )
+
+    # 8. Single-Answer Direct Response to Interview Question (Context-Aware)
+    already_extracted_names = {f.field_name for f in facts}
+    if target_field and target_field not in already_extracted_names:
+        is_intent_prompt = any(
+            kw in text_clean.lower()
+            for kw in ["need", "want", "certificate", "licence", "license", "help", "how to", "apply", "give me"]
+        )
+        if not is_intent_prompt:
+            val = text_clean.strip(" .;")
+            if target_field == "applicant_name":
+                if re.match(r"^[A-Za-z]+(?:\s+[A-Za-z]+){1,3}$", val):
+                    facts.append(ExtractedFactItem(field_name="applicant_name", field_value=val, evidence=val))
+            elif target_field == "father_name":
+                if re.match(r"^[A-Za-z]+(?:\s+[A-Za-z]+){1,3}$", val):
+                    facts.append(ExtractedFactItem(field_name="father_name", field_value=val, evidence=val))
+            elif target_field == "date_of_birth":
+                if re.match(r"^[0-9]{1,4}[\/\-\.][0-9]{1,2}[\/\-\.][0-9]{1,4}$", val):
+                    facts.append(ExtractedFactItem(field_name="date_of_birth", field_value=val, evidence=val))
+            elif target_field in ["present_address", "residence_location"]:
+                if len(val) >= 5:
+                    facts.append(ExtractedFactItem(field_name="present_address", field_value=val, evidence=val))
+            elif target_field in ["location", "business_location"]:
+                if len(val) >= 3 and len(val) <= 40:
+                    facts.append(ExtractedFactItem(field_name=target_field, field_value=val, evidence=val))
+            elif target_field == "application_purpose":
+                if len(val) >= 3:
+                    facts.append(ExtractedFactItem(field_name="application_purpose", field_value=val, evidence=val))
+            elif target_field == "business_type":
+                if len(val) >= 3:
+                    facts.append(ExtractedFactItem(field_name="business_type", field_value=val, evidence=val))
+            elif target_field == "stay_duration":
+                if re.search(r"[0-9]+", val):
+                    facts.append(ExtractedFactItem(field_name="stay_duration", field_value=val, evidence=val))
 
     return facts
