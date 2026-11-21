@@ -120,3 +120,68 @@ def test_conversation_detail_includes_official_resources(mock_gemini):
     assert detail["official_resources"] is not None
     assert detail["official_resources"]["service_id"] == "wb_income_certificate"
     assert "edistrict.wb.gov.in" in detail["official_resources"]["official_portal_url"]
+
+
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_official_resources_omitted_during_routine_interview_turns(mock_gemini):
+    """Verifies official_resources card is NOT attached during routine interview Q&A turns to avoid clutter."""
+    mock_gemini.return_value = StructuredIntentResult(
+        intent=IntentCategory.WB_DOMICILE_CERTIFICATE,
+        intent_status=IntentStatus.IDENTIFIED,
+        service_support=ServiceSupport.SUPPORTED_MVP,
+        missing_information=["father_name", "date_of_birth"],
+        next_action=NextAction.ASK_CLARIFICATION,
+        extracted_facts=[],
+        reply="What is your father's name?",
+    )
+    res = client.post(
+        "/api/chat",
+        json={
+            "conversation_id": None,
+            "client_message_id": str(uuid.uuid4()),
+            "message": "My name is Subham Ghosh.",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    # During normal conversational fact collection, card is omitted
+    assert data["official_resources"] is None
+
+
+def test_probable_research_for_general_services():
+    """Verifies open-to-all civic services return probable guidance with is_verified=False."""
+    services = ["passport_services", "driving_licence", "pan_card", "voter_id", "aadhaar_services"]
+    for s in services:
+        res = research_service.get_service_research(s)
+        assert res is not None, f"Service '{s}' missing"
+        assert res.is_verified is False
+        assert res.verification_badge == "Probable Official Guidance"
+        assert res.disclaimer is not None
+        assert res.official_portal_url.startswith("https://")
+        assert len(res.required_documents) >= 2
+
+
+@patch.object(gemini_service, "analyze_intent_and_reply")
+def test_open_civic_chatbot_passport_guidance(mock_gemini):
+    """Verifies that citizen queries for passport return probable guidance rather than being blocked."""
+    mock_gemini.return_value = mock_ai_intent_result(
+        intent=IntentCategory.PASSPORT_SERVICES,
+        reply="You can apply for an Indian passport on the official Passport Seva portal.",
+    )
+    res = client.post(
+        "/api/chat",
+        json={
+            "conversation_id": None,
+            "client_message_id": str(uuid.uuid4()),
+            "message": "What is the official website and documents needed for Indian passport renewal?",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["official_resources"] is not None
+    res_obj = data["official_resources"]
+    assert res_obj["service_id"] == "passport_services"
+    assert res_obj["is_verified"] is False
+    assert res_obj["verification_badge"] == "Probable Official Guidance"
+    assert "passportindia.gov.in" in res_obj["official_portal_url"]
+

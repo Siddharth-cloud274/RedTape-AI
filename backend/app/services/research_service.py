@@ -194,36 +194,313 @@ OFFICIAL_RESEARCH_DATABASE: Dict[str, OfficialServiceResearch] = {
     ),
 }
 
+PROBABLE_RESEARCH_DATABASE: Dict[str, OfficialServiceResearch] = {
+    "passport_services": OfficialServiceResearch(
+        service_id="passport_services",
+        title="Indian Passport Services (Tatkaal / Normal / Renewal)",
+        issuing_authority="Consular, Passport & Visa Division, Ministry of External Affairs",
+        jurisdiction="Government of India",
+        official_portal_url="https://www.passportindia.gov.in/",
+        alternate_portal_url="https://services.india.gov.in/",
+        overview=(
+            "Official passport issuance and renewal services under the Passports Act, 1967. "
+            "Applications, payments, and appointments are scheduled online via Passport Seva Kendras (PSK / POPSK)."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Please check appointment availability and document guidelines on passportindia.gov.in.",
+        required_documents=[
+            "Proof of Date of Birth (Birth Certificate, Madhyamik/10th Admit Card, or Transfer Certificate)",
+            "Proof of Present Address (Aadhaar Card, Electricity Bill, Bank Passbook, or Voter ID)",
+            "Standard Government Photo ID (Aadhaar, Voter ID, PAN)",
+            "Previous Passport booklet (for re-issue / renewal applications)",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="Passport Seva Portal",
+                url="https://www.passportindia.gov.in/",
+                description="Official Ministry of External Affairs portal for passport application, fee payment, and appointment booking",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+    "driving_licence": OfficialServiceResearch(
+        service_id="driving_licence",
+        title="Driving Licence & Learner Licence (Sarathi Parivahan)",
+        issuing_authority="Regional Transport Office (RTO) / Ministry of Road Transport and Highways (MoRTH)",
+        jurisdiction="Government of India & State Transport Departments",
+        official_portal_url="https://parivahan.gov.in/",
+        alternate_portal_url="https://sarathi.parivahan.gov.in/",
+        overview=(
+            "Motor vehicle driving licences (Learner, Permanent, Commercial, Renewal) are administered "
+            "under the Motor Vehicles Act, 1988 via the unified Parivahan Sarathi platform."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Slot booking, test procedures, and fee payments vary by state RTO.",
+        required_documents=[
+            "Proof of Age (Madhyamik Certificate, Birth Certificate, or Passport)",
+            "Proof of Residential Address (Voter ID, Electricity Bill, Aadhaar Card, or Rent Agreement)",
+            "Form 1 Physical Fitness Declaration (and Form 1A Medical Certificate for applicants above 40 years)",
+            "Valid Learner's Licence (for permanent driving licence tests)",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="Parivahan Sewa Official Portal",
+                url="https://parivahan.gov.in/",
+                description="Unified national portal for driving licence services, vehicle registration (Vahan), and slot booking",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+    "pan_card": OfficialServiceResearch(
+        service_id="pan_card",
+        title="Permanent Account Number (PAN Card)",
+        issuing_authority="Income Tax Department, Ministry of Finance (via Protean NSDL / UTIITSL)",
+        jurisdiction="Government of India",
+        official_portal_url="https://www.incometax.gov.in/",
+        alternate_portal_url="https://www.onlineservices.nsdl.com/paam/endUserRegisterContact.html",
+        overview=(
+            "Ten-digit alphanumeric identifier issued by the Income Tax Department under the Income Tax Act, 1961 "
+            "for financial identification and tax compliance."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Use authorized e-Filing or Protean NSDL portals to avoid unauthorized third-party fees.",
+        required_documents=[
+            "Proof of Identity (Aadhaar Card, Voter ID, Passport, or Driving Licence)",
+            "Proof of Address (Aadhaar Card, Utility Bill, or Bank Account Statement)",
+            "Proof of Date of Birth (Birth Certificate, Matriculation Certificate, or Passport)",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="Income Tax e-Filing Portal (Instant e-PAN)",
+                url="https://www.incometax.gov.in/",
+                description="Apply for instant paperless e-PAN using Aadhaar e-KYC",
+                link_type="official_portal",
+            ),
+            OfficialLinkItem(
+                title="Protean NSDL PAN Application Portal",
+                url="https://www.onlineservices.nsdl.com/paam/endUserRegisterContact.html",
+                description="Authorized official portal for new PAN (Form 49A) and corrections",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+    "voter_id": OfficialServiceResearch(
+        service_id="voter_id",
+        title="Voter ID Card (Election Photo Identity Card - EPIC)",
+        issuing_authority="Election Commission of India (ECI) / Chief Electoral Officers",
+        jurisdiction="Government of India",
+        official_portal_url="https://voters.eci.gov.in/",
+        overview=(
+            "Electoral registration and voter identity card issuance under the Representation of the People Act, 1950. "
+            "Eligible Indian citizens aged 18+ can apply via Form 6."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Electoral rolls are finalized by the local Electoral Registration Officer (ERO).",
+        required_documents=[
+            "Proof of Age (Birth Certificate, Aadhaar, PAN, or Passport)",
+            "Proof of Ordinary Residence (Electricity Bill, Water Bill, Aadhaar, or Bank Passbook)",
+            "One recent color passport photograph (4.5 cm x 3.5 cm)",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="Election Commission Voters Portal",
+                url="https://voters.eci.gov.in/",
+                description="Official ECI portal for new voter registration (Form 6), address shifting (Form 8), and EPIC download",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+    "aadhaar_services": OfficialServiceResearch(
+        service_id="aadhaar_services",
+        title="Aadhaar Services (Enrollment, Update & PVC Card)",
+        issuing_authority="Unique Identification Authority of India (UIDAI)",
+        jurisdiction="Government of India",
+        official_portal_url="https://myaadhaar.uidai.gov.in/",
+        overview=(
+            "12-digit unique identity number issued by UIDAI under the Aadhaar Act, 2016 based on biometric and demographic information."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Biometric updates require visiting an authorized Aadhaar Seva Kendra (ASK).",
+        required_documents=[
+            "Valid Proof of Identity (POI) from UIDAI approved list (Voter ID, Passport, PAN)",
+            "Valid Proof of Address (POA) from UIDAI approved list (Utility bill, Rent agreement, Bank statement)",
+            "Date of Birth proof (for initial enrollment or DOB correction)",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="myAadhaar Citizen Portal",
+                url="https://myaadhaar.uidai.gov.in/",
+                description="Official UIDAI portal to check status, order Aadhaar PVC, and update demographic details",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+    "caste_certificate": OfficialServiceResearch(
+        service_id="caste_certificate",
+        title="Caste Certificate (SC / ST / OBC Certificate)",
+        issuing_authority="Sub-Divisional Officer (SDO) / District Magistrate / Backward Classes Welfare Department",
+        jurisdiction="State Government & Central Welfare Directory",
+        official_portal_url="https://castcertificatewb.gov.in/",
+        alternate_portal_url="https://services.india.gov.in/",
+        overview=(
+            "Official certificate verifying membership in a recognized Scheduled Caste, Scheduled Tribe, or Other Backward Class."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. State rules and documentary proof of lineage are verified by local revenue authorities.",
+        required_documents=[
+            "Proof of paternal lineage (blood relation certificate of father/uncle or genealogy tree)",
+            "Proof of residence in the state (Ration card, Land deed / Porcha, or Voter ID)",
+            "Proof of citizenship (Voter ID of applicant/parents, Aadhaar card)",
+            "Two passport-sized photographs",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="West Bengal Caste Certificate Portal",
+                url="https://castcertificatewb.gov.in/",
+                description="Official portal for SC/ST/OBC certificate online application and status tracking",
+                link_type="official_portal",
+            ),
+            OfficialLinkItem(
+                title="National Government Services Portal",
+                url="https://services.india.gov.in/",
+                description="Central services directory for other Indian states",
+                link_type="state_portal",
+            ),
+        ],
+    ),
+    "birth_death_certificate": OfficialServiceResearch(
+        service_id="birth_death_certificate",
+        title="Birth & Death Registration (Civil Registration System)",
+        issuing_authority="Registrar of Births & Deaths / Local Municipal Authority",
+        jurisdiction="Government of India & State Municipal Authorities",
+        official_portal_url="https://crsorgi.gov.in/",
+        alternate_portal_url="https://janma-mrityutathya.wb.gov.in/",
+        overview=(
+            "Mandatory civil registration of vital events under the Registration of Births and Deaths Act, 1969."
+        ),
+        is_verified=False,
+        verification_badge="Probable Official Guidance",
+        disclaimer="Probable official portal link. Vital events must be registered within 21 days with the local registrar.",
+        required_documents=[
+            "Institutional Birth/Death Discharge slip or report from hospital",
+            "Identity and address proof of parents or informant (Aadhaar / Voter ID)",
+            "Marriage certificate of parents (for birth registration) if requested",
+        ],
+        official_links=[
+            OfficialLinkItem(
+                title="Civil Registration System (CRS) India",
+                url="https://crsorgi.gov.in/",
+                description="Central CRS portal for online birth and death registration across Indian states",
+                link_type="official_portal",
+            ),
+        ],
+    ),
+}
+
 
 class ResearchService:
     """Service providing verified official government portals, resources, and checklists."""
 
     @staticmethod
-    def get_service_research(intent: Optional[IntentCategory | str]) -> Optional[OfficialServiceResearch]:
-        if not intent:
-            return None
-        val = intent.value if isinstance(intent, IntentCategory) else str(intent).lower()
-        return OFFICIAL_RESEARCH_DATABASE.get(val)
+    def get_service_research(
+        intent: Optional[IntentCategory | str],
+        query: Optional[str] = None,
+    ) -> Optional[OfficialServiceResearch]:
+        if intent:
+            val = intent.value if isinstance(intent, IntentCategory) else str(intent).lower()
+            # 1. Check verified database
+            if val in OFFICIAL_RESEARCH_DATABASE:
+                return OFFICIAL_RESEARCH_DATABASE[val]
+            # 2. Check probable database
+            if val in PROBABLE_RESEARCH_DATABASE:
+                return PROBABLE_RESEARCH_DATABASE[val]
+
+        # 3. Keyword check on query if available
+        if query:
+            q_lower = query.lower()
+            if "passport" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["passport_services"]
+            elif "driving" in q_lower or "licence" in q_lower and "trade" not in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["driving_licence"]
+            elif "pan" in q_lower or "pan card" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["pan_card"]
+            elif "voter" in q_lower or "epic" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["voter_id"]
+            elif "aadhaar" in q_lower or "aadhar" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["aadhaar_services"]
+            elif "caste" in q_lower or "sc certificate" in q_lower or "obc" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["caste_certificate"]
+            elif "birth certificate" in q_lower or "death certificate" in q_lower:
+                return PROBABLE_RESEARCH_DATABASE["birth_death_certificate"]
+
+            # 4. Open-to-all universal civic fallback
+            words = [w for w in ["certificate", "licence", "license", "registration", "scheme", "apply", "card", "yojana", "portal"] if w in q_lower]
+            if words:
+                return OfficialServiceResearch(
+                    service_id="general_service",
+                    title="National Government Citizen Services",
+                    issuing_authority="Competent Central / State Ministry or Department",
+                    jurisdiction="Government of India / State Government",
+                    official_portal_url="https://services.india.gov.in/",
+                    overview=(
+                        "Unified citizen services directory facilitating online access to government services, "
+                        "welfare schemes, and civic applications across all Indian states and Union Territories."
+                    ),
+                    is_verified=False,
+                    verification_badge="Probable Official Guidance",
+                    disclaimer="Probable official portal link from the National Services Directory. Please confirm state-specific requirements.",
+                    required_documents=[
+                        "Standard Government Photo ID (Aadhaar, Voter ID, or PAN)",
+                        "Proof of Residential Address (Utility Bill, Voter ID, or Ration Card)",
+                        "Prescribed Application Form or Online Registration Acknowledgement",
+                        "Passport-sized photograph and fee payment receipt (if applicable)",
+                    ],
+                    official_links=[
+                        OfficialLinkItem(
+                            title="National Government Services Portal of India",
+                            url="https://services.india.gov.in/",
+                            description="Official Government of India portal connecting citizens to 14,000+ state and central services",
+                            link_type="official_portal",
+                        ),
+                        OfficialLinkItem(
+                            title="Digital India Citizen Services",
+                            url="https://www.digitalindia.gov.in/",
+                            description="National digital public infrastructure portal for citizen services",
+                            link_type="state_portal",
+                        ),
+                    ],
+                )
+
+        return None
 
     @staticmethod
-    def format_research_context_for_prompt(intent: Optional[IntentCategory | str]) -> str:
+    def format_research_context_for_prompt(intent: Optional[IntentCategory | str], query: Optional[str] = None) -> str:
         """Formats verified official research data for injection into Gemini context."""
-        research = ResearchService.get_service_research(intent)
+        research = ResearchService.get_service_research(intent, query)
         if not research:
             return ""
 
         docs_list = "\n".join(f"  - {d}" for d in research.required_documents)
         links_list = "\n".join(f"  - [{link.title}]({link.url}): {link.description}" for link in research.official_links)
+        verified_status = "VERIFIED OFFICIAL" if research.is_verified else "PROBABLE / GENERAL GUIDANCE"
+
+        checklist_label = "Verified Required Documents Checklist" if research.is_verified else "Typical Supporting Documents Checklist"
 
         return (
-            f"\nVERIFIED OFFICIAL GOVERNMENT RESEARCH FOR {research.title.upper()}:\n"
+            f"\nGOVERNMENT RESEARCH FOR {research.title.upper()} ({verified_status}):\n"
             f"- Issuing Authority: {research.issuing_authority}\n"
             f"- Jurisdiction: {research.jurisdiction}\n"
-            f"- Primary Official Portal: {research.official_portal_url}\n"
+            f"- Primary Portal: {research.official_portal_url}\n"
             f"- Legal Overview: {research.overview}\n"
-            f"- Verified Required Documents Checklist:\n{docs_list}\n"
-            f"- Official Portal & Resource Links:\n{links_list}\n"
-            f"IMPORTANT: Cite these exact official URLs and checklist items when guiding the citizen."
+            f"- {checklist_label}:\n{docs_list}\n"
+            f"- Portal & Resource Links:\n{links_list}\n"
+            f"NOTE: If this service is PROBABLE, clarify that it is probable official guidance."
         )
 
 

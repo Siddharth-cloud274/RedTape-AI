@@ -292,15 +292,37 @@ class SessionManager:
                 db=db,
             )
 
-            # 4. Enforce stopping conditions & official research guidance
-            official_resources = research_service.get_service_research(structured_result.intent)
+            # 4. Enforce stopping conditions & contextual research guidance
+            msg_lower = request.message.lower()
+            is_asking_for_resources = any(
+                w in msg_lower
+                for w in [
+                    "link", "links", "website", "websites", "portal", "portals", "url", "urls",
+                    "where to apply", "how to apply", "where can i apply", "how can i apply",
+                    "where do i apply", "how do i apply",
+                    "document", "documents", "checklist", "form", "forms", "page", "pages",
+                    "process", "procedure", "official", "requirement", "requirements",
+                ]
+            )
+            is_ready = interview_decision.interview_status == InterviewStatus.READY_FOR_RESEARCH
+
+            # Official resources card appears ONLY when requested by user or when the interview reaches completion
+            if is_asking_for_resources or is_ready:
+                official_resources = research_service.get_service_research(
+                    structured_result.intent,
+                    query=request.message,
+                )
+            else:
+                official_resources = None
+
             reply_text = structured_result.reply
-            if interview_decision.interview_status == InterviewStatus.READY_FOR_RESEARCH:
+            if is_ready:
                 if official_resources and official_resources.official_portal_url:
                     if official_resources.official_portal_url not in reply_text:
+                        badge_label = "Official Application Portal" if official_resources.is_verified else "Probable Official Portal"
                         reply_text = (
                             f"{reply_text.strip()}\n\n"
-                            f"**Official Application Portal**: [{official_resources.title} Portal]({official_resources.official_portal_url})\n"
+                            f"**{badge_label}**: [{official_resources.title}]({official_resources.official_portal_url})\n"
                             f"**Issuing Authority**: {official_resources.issuing_authority}\n\n"
                             f"Official verification and application procedures are guided by verified government portal resources."
                         )
@@ -398,12 +420,28 @@ class SessionManager:
             intent = IntentCategory.WB_INCOME_CERTIFICATE
         elif "trade" in msg_lower:
             intent = IntentCategory.TRADE_LICENCE
-        elif "fssai" in msg_lower or "food" in msg_lower:
+        elif "fssai" in msg_lower:
             intent = IntentCategory.FSSAI_REGISTRATION
+        elif "food" in msg_lower:
+            intent = IntentCategory.FOOD_BUSINESS_SETUP
+        elif "passport" in msg_lower:
+            intent = IntentCategory.PASSPORT_SERVICES
+        elif "driving" in msg_lower or ("licence" in msg_lower and "trade" not in msg_lower):
+            intent = IntentCategory.DRIVING_LICENCE
+        elif "pan" in msg_lower:
+            intent = IntentCategory.PAN_CARD
+        elif "voter" in msg_lower or "epic" in msg_lower:
+            intent = IntentCategory.VOTER_ID
+        elif "aadhaar" in msg_lower or "aadhar" in msg_lower:
+            intent = IntentCategory.AADHAAR_SERVICES
+        elif "caste" in msg_lower:
+            intent = IntentCategory.CASTE_CERTIFICATE
+        elif "birth" in msg_lower or "death" in msg_lower:
+            intent = IntentCategory.BIRTH_DEATH_CERTIFICATE
         elif existing_intent and existing_intent in [i.value for i in IntentCategory]:
             intent = IntentCategory(existing_intent)
         else:
-            intent = IntentCategory.WB_DOMICILE_CERTIFICATE
+            intent = IntentCategory.GENERAL_SERVICE
 
         # 2. Extract facts from current message using context-aware heuristics
         extracted = extract_heuristic_applicant_facts(
@@ -424,20 +462,28 @@ class SessionManager:
         )
 
         # 5. Formulate natural conversational reply
-        res = research_service.get_service_research(intent)
+        res = research_service.get_service_research(intent, query=message)
         is_asking_for_resources = any(
             w in msg_lower
-            for w in ["link", "website", "portal", "url", "where to apply", "how to apply", "document", "checklist", "form", "page"]
+            for w in [
+                "link", "links", "website", "websites", "portal", "portals", "url", "urls",
+                "where to apply", "how to apply", "where can i apply", "how can i apply",
+                "where do i apply", "how do i apply",
+                "document", "documents", "checklist", "form", "forms", "page", "pages",
+                "process", "procedure", "official", "requirement", "requirements",
+            ]
         )
 
-        if is_asking_for_resources and res:
+        if (is_asking_for_resources or intent not in {IntentCategory.WB_DOMICILE_CERTIFICATE, IntentCategory.WB_INCOME_CERTIFICATE, IntentCategory.TRADE_LICENCE, IntentCategory.FSSAI_REGISTRATION}) and res:
             links_str = "\n".join(f"• [{link.title}]({link.url}) — {link.description}" for link in res.official_links)
             docs_str = "\n".join(f"• {doc}" for doc in res.required_documents)
+            badge_title = "Verified Official Portals" if res.is_verified else "Probable Official Guidance"
+            disclaimer_note = f"\n\n*(Note: {res.disclaimer})*" if res.disclaimer else ""
             reply = (
-                f"Here are the verified official government portals and checklist for **{res.title}**:\n\n"
-                f"**Official Portals & Resources**:\n{links_str}\n\n"
-                f"**Verified Required Documents**:\n{docs_str}\n\n"
-                f"**Issuing Authority**: {res.issuing_authority} ({res.jurisdiction})"
+                f"Here is the {badge_title.lower()} and overview for **{res.title}**:\n\n"
+                f"**Portals & Official Links**:\n{links_str}\n\n"
+                f"**Key Supporting Documents Needed**:\n{docs_str}\n\n"
+                f"**Issuing Authority**: {res.issuing_authority} ({res.jurisdiction}){disclaimer_note}"
             )
             action = NextAction.ACKNOWLEDGE_INTENT
             intent_status = IntentStatus.IDENTIFIED
