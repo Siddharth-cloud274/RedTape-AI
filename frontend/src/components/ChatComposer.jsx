@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Sparkles } from 'lucide-react';
 
 export default function ChatComposer({ onSendMessage, disabled = false, prefillValue = '', onClearPrefill }) {
   const [inputText, setInputText] = useState('');
@@ -52,7 +52,7 @@ export default function ChatComposer({ onSendMessage, disabled = false, prefillV
     <div className="w-full max-w-3xl mx-auto px-4 pb-4">
       <form
         onSubmit={handleSubmit}
-        className="relative flex items-end gap-2 bg-slate-900 border border-slate-800 rounded-2xl p-2 shadow-xl focus-within:border-slate-700 focus-within:ring-1 focus-within:ring-emerald-500/40 transition-all"
+        className="relative flex items-end gap-2 bg-obsidian-900/90 backdrop-blur-xl border border-obsidian-700/80 rounded-2xl p-2.5 shadow-2xl focus-within:border-crimson-500/60 focus-within:ring-2 focus-within:ring-crimson-500/20 transition-all duration-200"
       >
         <textarea
           ref={textareaRef}
@@ -63,7 +63,7 @@ export default function ChatComposer({ onSendMessage, disabled = false, prefillV
           disabled={disabled}
           placeholder="Ask anything about Indian bureaucracy, certificates, registrations..."
           aria-label="Chat input message"
-          className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm px-3 py-2 resize-none outline-none max-h-44 leading-relaxed"
+          className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm px-3 py-1.5 resize-none outline-none max-h-44 leading-relaxed font-normal"
         />
 
         <button
@@ -72,18 +72,22 @@ export default function ChatComposer({ onSendMessage, disabled = false, prefillV
           aria-label="Send message"
           className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 ${
             canSend
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950 cursor-pointer'
-              : 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+              ? 'bg-gradient-to-tr from-crimson-600 via-rose-600 to-crimson-500 text-white shadow-crimson-sm hover:shadow-crimson-glow cursor-pointer hover:scale-105 active:scale-95'
+              : 'bg-obsidian-800 text-slate-600 cursor-not-allowed opacity-40'
           }`}
         >
           <ArrowUp className="w-4 h-4 stroke-[2.5]" />
         </button>
       </form>
 
-      <div className="text-center mt-2">
-        <p className="text-[11px] text-slate-500">
-          RedTape AI &bull; Intelligent conversational assistant for Indian citizen bureaucracy.
-        </p>
+      <div className="flex items-center justify-between mt-2.5 px-2 text-[11px] text-slate-500">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-crimson-400" />
+          <span>RedTape AI &bull; Autonomous Bureaucracy Assistant</span>
+        </div>
+        <span className="hidden sm:inline-block font-mono text-[10px] text-slate-600">
+          Enter ↵ to send &bull; Shift+Enter for newline
+        </span>
       </div>
     </div>
   );
