@@ -50,3 +50,8 @@ class ConversationDetailResponse(BaseModel):
     updated_at: str
     messages: List[ConversationMessageResponse] = []
     facts: List[ApplicantFactResponse] = []
+    interview: Optional[object] = None
+    document_draft: Optional[object] = None
+    official_resources: Optional[object] = None
+    review: Optional[object] = None
+

@@ -24,6 +24,10 @@ dist-ssr/
 .env.*
 !.env.example
 
+# Storage / Draft PDFs
+storage/drafts/*.pdf
+backend/storage/drafts/*.pdf
+
 # SQLite Databases
 *.db
 *.db-journal

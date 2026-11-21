@@ -1,0 +1,894 @@
+MILESTONE M8 — VERIFIED OFFICIAL PDF FORM AUTOMATION
+PROJECT: RedTape AI
+TRACK: Agentic AI — Hack-N-Pitch 2026
+
+STATUS:
+M0, M1, M2, M3, M4, M5, M6 and M7
+completed and verified.
+
+CURRENT OBJECTIVE:
+Build a secure, reusable government document engine
+that converts validated applicant information into
+completed drafts of verified official PDF forms.
+
+Implement:
+- Official PDF template selection
+- PDF structure inspection
+- Applicant-data field mapping
+- Missing-field validation
+- Automated PDF draft population
+- In-chat document preview
+- Editing and regeneration
+- User-controlled PDF download
+
+Preserve every previously completed milestone.
+
+DO NOT implement government portal submission.
+
+====================================================
+PHASE A — INSPECT, PLAN, APPROVAL
+====================================================
+
+Before modifying any files:
+
+1. Read AGENTS.md.
+2. Review approved project architecture.
+3. Inspect the existing FastAPI application.
+4. Inspect M4 Gemini structured outputs.
+5. Inspect M5 persistent applicant facts.
+6. Inspect M6 adaptive interview state.
+7. Inspect M7 research evidence and citation models.
+8. Inspect current POST /api/chat integration.
+9. Inspect frontend chat rendering.
+10. Inspect existing tests and dependencies.
+
+Produce a file-by-file implementation plan.
+
+The plan must include:
+- PDF template selection strategy
+- Official template provenance and versioning
+- PDF inspection results
+- Field mapping design
+- Required data and validation rules
+- Frontend preview design
+- Document API contract
+- Storage and privacy controls
+- Test strategy
+- Backward-compatibility risks
+
+WAIT FOR MY EXPLICIT APPROVAL.
+
+Do not modify code or install dependencies
+before plan approval.
+
+====================================================
+PHASE B — SELECT ONE VERIFIED OFFICIAL PDF
+====================================================
+
+PRIMARY M8 SERVICE:
+West Bengal Domicile Certificate
+For Higher Studies
+Kolkata Collectorate jurisdiction
+
+Official source:
+https://kolkatacollectorate.wb.gov.in/domicile-certificate/
+
+The official page provides a downloadable PDF
+for the Higher Studies purpose.
+
+IMPORTANT:
+This form is jurisdiction-specific.
+Do not apply it automatically to every West Bengal
+district or every domicile request.
+
+Before downloading or mapping:
+
+1. Recheck the current official source page.
+2. Confirm the authority and purpose.
+3. Verify the applicant's relevant jurisdiction.
+4. Download the PDF from its official link.
+5. Record the exact download URL.
+6. Record the source page URL.
+7. Record retrieval time and file hash.
+8. Inspect page count and PDF structure.
+9. Record template version if identifiable.
+10. Check whether the PDF contains fillable fields.
+
+The form previously reviewed has three pages.
+Verify the current downloaded version rather
+than assuming the document never changes.
+
+If the exact form is unavailable or changed,
+report the blocker and request review.
+
+Do not silently replace the official form
+with an invented template.
+
+SECONDARY SERVICE:
+Kolkata Income Certificate Form A.
+
+Add it only if the primary template is fully
+implemented, tested and separately approved.
+
+FSSAI and trade licence remain guidance-only
+unless appropriate official PDF templates
+have been independently verified.
+
+====================================================
+PHASE C — PDF INSPECTION ENGINE
+====================================================
+
+Use PyMuPDF.
+
+Inspect the official PDF to determine:
+
+- Number of pages
+- Page dimensions
+- Orientation and rotation
+- Embedded text
+- Existing AcroForm widgets
+- Input areas without widgets
+- Tables
+- Checkboxes
+- Signature areas
+- Official instructions
+- Document checklist pages
+
+Support two template types:
+
+TYPE A — FILLABLE PDF:
+Use the official AcroForm widgets and their
+actual field names.
+
+TYPE B — STATIC PDF:
+Use a manually verified page-coordinate mapping
+to position text on the existing official PDF.
+
+Never assume a form is fillable merely because
+it contains blank lines.
+
+For static templates:
+
+1. Render the original PDF to page images.
+2. Inspect each page visually.
+3. Identify writable input areas.
+4. Create explicit coordinate mappings.
+5. Test placement using synthetic data.
+6. Re-render the generated document.
+7. Verify position, alignment and readability.
+8. Refuse export if critical fields overlap
+   labels, instructions or other content.
+
+Do not use guessed coordinates in production
+template mappings.
+
+Do not use unrestricted OCR unless necessary.
+
+Preserve the official document's original text,
+structure, pages and instructions.
+
+====================================================
+PHASE D — OFFICIAL FIELD MAPPING
+====================================================
+
+Create a reusable template mapping system.
+
+The initial domicile form contains areas for
+information such as:
+
+- Purpose of application
+- Applicant name
+- Father's name
+- Father's occupation
+- Date of birth
+- Place of birth
+- Present address
+- Permanent address
+- Education history
+- Duration of stay in West Bengal
+- Residential history
+- Relevant property information
+- Applicant occupation
+- Other information
+- Contact details
+
+The PDF also contains a supporting-document
+checklist and an applicant signature area.
+
+IMPORTANT:
+These fields must be verified against the
+downloaded original PDF.
+
+Do not fabricate additional form fields.
+
+Create mappings between:
+
+1. Official PDF field or page coordinates
+2. Internal applicant fact key
+3. Expected data type
+4. Transformation/formatting rule
+5. Evidence or source message ID
+6. Validation rule
+7. Missing-value behavior
+
+Example internal mapping concept:
+
+{
+  "template_id": "kolkata_domicile_higher_studies",
+  "field_key": "applicant_name",
+  "source_fact": "applicant.full_name",
+  "pdf_mapping": "verified_actual_field_or_rectangle",
+  "required_for_draft": true,
+  "confidence": "confirmed"
+}
+
+This is a conceptual model.
+
+Determine the real mapping based on the
+actual PDF structure.
+
+Do not infer document field coordinates
+from Gemini-generated text alone.
+
+====================================================
+PHASE E — APPLICANT-DATA INTEGRATION
+====================================================
+
+Reuse the M5 memory manager and M6 interview engine.
+
+Do not create a second, disconnected
+applicant-data collection system.
+
+When generating a document:
+
+1. Load the current conversation.
+2. Load validated applicant facts.
+3. Identify the current administrative intent.
+4. Load M7 official research evidence.
+5. Select the applicable form template.
+6. Match applicant facts to PDF fields.
+7. Identify unmapped or missing information.
+8. Detect conflicting facts.
+9. Validate required types and formats.
+10. Request user confirmation if necessary.
+
+Never invent unknown applicant details.
+
+Never automatically fill a blank field with
+fabricated information just to make the
+application appear complete.
+
+Distinguish:
+- Confirmed value
+- Missing value
+- Conflicting value
+- Not applicable
+- Requires applicant confirmation
+
+If the parent is the person chatting but
+the child is the certificate applicant,
+do not confuse their personal information.
+
+If the user changes a previous answer,
+use the corrected value in the next draft.
+
+Do not overwrite the stored original evidence
+for a correction; retain an audit reference.
+
+====================================================
+PHASE F — MISSING-FIELD VALIDATION
+====================================================
+
+Introduce a document-readiness validator.
+
+Suggested states:
+
+- template_unavailable
+- jurisdiction_unverified
+- collecting_document_details
+- missing_information
+- validation_failed
+- ready_for_draft
+- draft_generated
+- draft_needs_review
+- draft_exportable
+
+Document readiness is separate from
+government eligibility or approval.
+
+Requirements:
+
+1. Identify missing mapped fields.
+2. Distinguish mandatory and optional fields
+   based on the actual form and verified evidence.
+3. Ask for necessary details conversationally.
+4. Never repeat previously answered questions.
+5. Validate dates and basic data types.
+6. Validate formatting without inventing facts.
+7. Detect conflicting values.
+8. Prevent incorrect applicant/guardian mapping.
+9. Detect unsupported jurisdictions.
+10. Detect unsupported form purposes.
+
+If a user declines to provide a field,
+respect that choice.
+
+Allow incomplete draft preview when safe,
+but clearly identify incomplete fields.
+
+Do not present an incomplete application
+as ready for final submission.
+
+Do not demand government IDs or documents
+that M8 does not need for draft population.
+
+====================================================
+PHASE G — PDF GENERATION ENGINE
+====================================================
+
+Implement a modular PDF generation service.
+
+Suggested modules:
+
+- Template registry
+- Template inspector
+- Field mapper
+- Data validator
+- PDF filler
+- Output verifier
+- Document repository
+
+Requirements:
+
+1. Load the verified official PDF template.
+2. Create a separate output copy.
+3. Fill only supported applicant fields.
+4. Leave signatures blank.
+5. Leave officer-only fields blank.
+6. Never fabricate official approval, stamps,
+   certifications or verification results.
+7. Do not alter government instructions.
+8. Preserve required pages and checklist.
+9. Support multiline addresses where possible.
+10. Prevent clipped text and overlaps.
+11. Support appropriate fonts and characters.
+12. Reopen the generated PDF to verify structure.
+13. Check output for corruption.
+14. Record template version and draft version.
+15. Return a stable document identifier.
+
+Do not modify the original template in place.
+
+If text will not fit in a field, flag it and
+request correction or use a verified layout
+strategy.
+
+Never silently truncate important information.
+
+The document remains an UNSUBMITTED DRAFT.
+
+Display this status clearly in the application
+UI and download information.
+
+Do not create fake government-issued
+certificates or official approvals.
+
+====================================================
+PHASE H — DOCUMENT VERSIONING
+====================================================
+
+Each document draft must have:
+
+- Unique document ID
+- Conversation ID
+- Template ID
+- Template content hash
+- Draft version
+- Generation timestamp
+- Validation status
+- Source evidence reference
+- File storage reference
+
+When applicant facts change:
+
+1. Mark the existing draft as outdated.
+2. Do not silently overwrite it.
+3. Offer regeneration using corrected facts.
+4. Store the new draft version.
+5. Make the latest version identifiable.
+6. Prevent an outdated draft from being
+   mistaken for the current approved version.
+
+Preserve M3 request idempotency.
+
+A successfully retried generation request
+must not create unintended duplicate drafts.
+
+====================================================
+PHASE I — API INTEGRATION
+====================================================
+
+Preserve:
+
+POST /api/chat
+
+Do not break existing response fields.
+
+Implement document endpoints consistent with
+the current backend architecture.
+
+Suggested endpoints:
+
+POST /api/documents/draft
+- Generate a draft from validated session facts.
+
+GET /api/documents/{document_id}/metadata
+- Retrieve document status and source information.
+
+GET /api/documents/{document_id}/preview
+- Return the generated PDF for browser preview.
+
+GET /api/documents/{document_id}/download
+- Download the current selected PDF draft.
+
+POST /api/documents/{document_id}/regenerate
+- Generate a new version after applicant
+  details have been corrected.
+
+These paths are suggestions, not a mandate
+to rewrite existing routing conventions.
+
+Backend requirements:
+
+1. Validate all identifiers.
+2. Verify document/conversation ownership.
+3. Never accept arbitrary file paths.
+4. Prevent path traversal.
+5. Reject unknown document IDs.
+6. Return appropriate HTTP status codes.
+7. Set correct application/pdf content type.
+8. Use safe download filenames.
+9. Set appropriate private cache headers.
+10. Never expose internal storage paths.
+11. Avoid logging personal data.
+12. Handle regeneration and versioning safely.
+
+The existing prototype may not have full
+user authentication.
+
+Therefore, limit the demo to fictional data
+and document the limitations of unauthenticated
+access.
+
+Do not expose applicant documents publicly.
+
+====================================================
+PHASE J — CHAT INTERFACE INTEGRATION
+====================================================
+
+Preserve the existing ChatGPT-style UI.
+
+NO:
+- Service selection homepage
+- Mandatory dropdown navigation
+- New government application dashboard
+  replacing the chat
+- Large frontend redesign
+
+Document functionality must appear naturally
+inside the existing conversation.
+
+Example:
+
+USER:
+Can you prepare my domicile application?
+
+ASSISTANT:
+Checks supported jurisdiction and official form,
+then loads confirmed applicant information.
+
+IF DETAILS MISSING:
+Ask a relevant follow-up question.
+
+IF READY:
+Offer to generate an application draft.
+
+AFTER GENERATION:
+Show an in-chat document preview component.
+
+The document preview component should display:
+
+- Official form title
+- Issuing authority
+- Draft status
+- Relevant official source link
+- Last verified template information
+- Missing-field warnings
+- Preview PDF action
+- Download PDF action
+- Edit/correct information action
+
+Use the existing chat context and state.
+
+Do not display raw database records or
+raw PDF mapping JSON to the user.
+
+Do not require the user to leave the chat
+to choose a service manually.
+
+====================================================
+PHASE K — DOCUMENT PREVIEW
+====================================================
+
+Implement a safe PDF preview experience.
+
+Requirements:
+
+1. Preview generated drafts within the UI.
+2. Show all document pages.
+3. Support scrolling and zoom where practical.
+4. Work on desktop and mobile.
+5. Handle unavailable or corrupt PDF files.
+6. Show document version and draft status.
+7. Show missing or unverified fields.
+8. Provide clear edit and download actions.
+9. Preserve chat messages and state.
+10. Release temporary browser object URLs.
+11. Avoid loading untrusted embedded scripts.
+12. Prevent unintended public document exposure.
+
+Use a lightweight browser-native PDF viewer
+when sufficient.
+
+Do not introduce a large PDF viewer framework
+unless necessary.
+
+Do not falsely label the draft as government
+approved, verified or submitted.
+
+====================================================
+PHASE L — DOWNLOAD AND TEMPORARY STORAGE
+====================================================
+
+Implement safe draft downloads.
+
+Requirements:
+
+1. Generate unique output filenames.
+2. Do not use raw applicant names in file paths.
+3. Store generated PDFs outside the source tree.
+4. Exclude generated files from Git.
+5. Do not use user-controlled storage paths.
+6. Restrict document access.
+7. Avoid browser caching of sensitive PDFs.
+8. Provide sensible retention and deletion.
+9. Remove temporary files when no longer needed.
+10. Handle disk/storage errors gracefully.
+11. Avoid persisting unnecessary personal details.
+12. Include source template metadata in records.
+
+For hackathon testing, use synthetic applicants.
+
+Production storage and access control must be
+reviewed separately before handling real users.
+
+====================================================
+PHASE M — OFFICIAL-SOURCE DEPENDENCY
+====================================================
+
+Reuse M7 source verification.
+
+Before selecting a form, verify:
+
+- Official issuing authority
+- Form purpose
+- Jurisdiction
+- Source URL
+- Downloaded template version
+- Applicability to user's request
+
+Do not use a PDF merely because its filename
+contains "income" or "domicile".
+
+If the applicable official form cannot be
+verified or retrieved:
+
+- Do not generate a fake official document.
+- Explain the limitation.
+- Preserve the user's collected facts.
+- Provide the verified source if available.
+- Allow future retry.
+
+Do not allow Gemini to invent official
+PDF URLs, form fields or signatures.
+
+====================================================
+PHASE N — SECURITY AND PRIVACY
+====================================================
+
+Security requirements:
+
+1. Keep Gemini API credentials backend-only.
+2. Do not store government portal passwords.
+3. Do not collect OTPs or CAPTCHA solutions.
+4. Do not copy real personal documents into Git.
+5. Do not leak applicant facts into logs.
+6. Validate document ownership.
+7. Reject unsafe document identifiers.
+8. Use controlled templates only.
+9. Limit document file sizes.
+10. Prevent arbitrary filesystem reads.
+11. Preserve original government form content.
+12. Avoid excessive personal data retention.
+13. Use synthetic data for all testing.
+14. No automatic government submission.
+
+Do not add unnecessary user-data uploads.
+
+Do not create signatures on behalf of users.
+
+====================================================
+PHASE O — ERROR HANDLING
+====================================================
+
+Handle:
+
+1. Official template download failure.
+2. Template format mismatch.
+3. Unknown or unsupported PDF form.
+4. Missing applicant information.
+5. Conflicting applicant facts.
+6. Unsupported jurisdiction.
+7. Invalid field mapping.
+8. Font or character rendering issue.
+9. Text overflow.
+10. Corrupted PDF generation.
+11. Storage failure.
+12. Unauthorized document access.
+13. Missing document ID.
+14. Outdated draft version.
+15. Gemini API failure.
+16. Duplicate generation requests.
+17. Backend restart during generation.
+
+Failures must not corrupt existing
+conversation memory or source evidence.
+
+Do not produce a fabricated successful result.
+
+====================================================
+PHASE P — AUTOMATED TESTING
+====================================================
+
+Use synthetic applicant profiles.
+
+PDF TEMPLATE TESTS:
+
+1. Official template registered.
+2. Source URL and template hash stored.
+3. Wrong template rejected.
+4. Wrong jurisdiction rejected.
+5. Form page count verified.
+6. Fillable/static classification checked.
+7. Field mapping correctness tested.
+8. Unknown PDF field rejected.
+
+APPLICANT DATA TESTS:
+
+9. Confirmed facts mapped correctly.
+10. Missing fields identified.
+11. Corrected information reflected.
+12. Conflicting facts blocked.
+13. Unrelated conversation facts excluded.
+14. Optional fields handled safely.
+15. Invalid dates rejected.
+16. Long text handled without silent truncation.
+
+PDF OUTPUT TESTS:
+
+17. Original template remains unchanged.
+18. Generated PDF opens successfully.
+19. Output preserves original pages.
+20. Text appears in correct positions.
+21. No clipped or overlapping content.
+22. Signature and official-only fields blank.
+23. PDF download matches generated draft.
+24. Regeneration creates correct new version.
+25. Old draft correctly marked outdated.
+26. Corrupted output rejected.
+
+API AND SECURITY TESTS:
+
+27. Unknown document ID rejected.
+28. Path traversal attempts rejected.
+29. Unauthorized access rejected.
+30. Duplicate generation handled.
+31. Preview endpoint returns valid PDF.
+32. Download endpoint returns valid PDF.
+33. Storage error handled.
+34. Safe filename generated.
+
+REGRESSION TESTS:
+
+35. M1 health endpoint.
+36. M2 conversational frontend.
+37. M3 session and retry handling.
+38. M4 Gemini integration.
+39. M5 persistent memory.
+40. M6 adaptive interview.
+41. M7 research and citations.
+42. Frontend production build.
+
+Do not claim tests passed unless executed.
+
+====================================================
+PHASE Q — VISUAL PDF VERIFICATION
+====================================================
+
+This is mandatory.
+
+After filling the official PDF:
+
+1. Render the original PDF to page images.
+2. Render the generated PDF to page images.
+3. Compare corresponding pages.
+4. Verify every populated field visually.
+5. Verify no text overlaps.
+6. Verify no text is clipped.
+7. Verify long addresses and names.
+8. Verify table alignment.
+9. Verify signatures remain blank.
+10. Verify official instructions are unchanged.
+11. Verify checklist pages remain readable.
+12. Verify the output opens in a PDF viewer.
+
+Test at least:
+
+- Short applicant name
+- Long applicant name
+- Multiline address
+- Missing optional information
+- Corrected applicant information
+
+Use at least one PDF renderer.
+For difficult templates, cross-check with
+a second renderer if available.
+
+If visual verification fails,
+do not mark the milestone complete.
+
+====================================================
+PHASE R — BROWSER ACCEPTANCE TEST
+====================================================
+
+TEST SCENARIO:
+
+USER:
+I need a domicile certificate for higher studies.
+
+ASSISTANT:
+Uses M4 intent recognition, M5 memory,
+M6 interviews and M7 verified research.
+
+USER:
+I live within the relevant Kolkata jurisdiction.
+
+EXPECTED:
+Verify the applicable form and jurisdiction.
+
+Use fictional applicant data for the test.
+
+USER:
+Can you prepare the application for me?
+
+EXPECTED:
+Identify any missing official form details,
+ask for them conversationally,
+and offer draft generation when appropriate.
+
+AFTER GENERATION:
+
+- PDF appears in the conversation.
+- Correct official form is used.
+- Applicant fields are populated.
+- Blank fields are clearly indicated.
+- Signature remains empty.
+- Document is identified as an unsubmitted draft.
+- Preview works.
+- Download works.
+- User can correct information.
+- Regenerated version contains updated values.
+
+Also verify:
+
+- New Chat.
+- Session isolation.
+- Browser refresh.
+- M7 citations.
+- Frontend responsiveness.
+- Error handling.
+- No browser console errors.
+
+====================================================
+STRICT EXCLUSIONS
+====================================================
+
+DO NOT IMPLEMENT:
+
+- Official government portal login
+- Government portal autofill
+- OTP collection
+- CAPTCHA bypass
+- Digital signatures
+- Government officer approvals
+- Automated application submission
+- Payment processing
+- New government service integrations
+- Arbitrary PDF uploads
+- OCR of private identity documents
+- Major frontend redesigns
+- New authentication platform
+- Unrelated agent frameworks
+
+Do not begin M9.
+
+====================================================
+M8 ACCEPTANCE CRITERIA
+====================================================
+
+1. Official PDF template verified.
+2. Correct jurisdiction and purpose enforced.
+3. PDF structure inspected.
+4. Static/fillable template type identified.
+5. Verified field mapping implemented.
+6. Existing applicant memory reused.
+7. Missing fields tracked accurately.
+8. Conflicting information handled.
+9. PDF generation produces readable output.
+10. Original government PDF is preserved.
+11. Fields appear at correct positions.
+12. Signatures and official fields remain blank.
+13. Draft versioning works.
+14. Document preview works inside chat.
+15. Draft download works.
+16. Corrected facts regenerate the document.
+17. Source provenance is retained.
+18. Access and path validation implemented.
+19. Errors handled without fake success.
+20. M1-M7 regression tests pass.
+21. Frontend production build succeeds.
+22. Generated PDF passes visual verification.
+23. No government submission attempted.
+24. No out-of-scope features introduced.
+
+====================================================
+FINAL REPORT
+====================================================
+
+Report:
+
+1. Files created and modified.
+2. Official PDF source and retrieval status.
+3. PDF type and inspection results.
+4. Field mapping architecture.
+5. Applicant data integration.
+6. Document validation logic.
+7. API endpoints added.
+8. Preview/download implementation.
+9. Document storage and security.
+10. Actual test results.
+11. Original vs generated PDF visual results.
+12. Browser verification results.
+13. Known limitations.
+14. M1-M7 regression confirmation.
+
+STOP AFTER M8.
+
+DO NOT BEGIN M9 WITHOUT EXPLICIT APPROVAL.
+
+
+I Confirm
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-21T04:58:05+05:30.
+</ADDITIONAL_METADATA>

@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Dict, List, Optional
 from google import genai
 from google.genai import types
@@ -14,31 +15,49 @@ from app.schemas.chat import (
     StructuredIntentResult,
 )
 from app.services.context_tracker import context_tracker
+from app.services.research_service import research_service
 
-SYSTEM_INSTRUCTION = """You are RedTape AI, an agentic AI assistant helping Indian citizens navigate government bureaucracy.
-Your task is CONVERSATIONAL INTENT UNDERSTANDING, FACT EXTRACTION, and CONTEXT-AWARE ASSISTANCE.
+SYSTEM_INSTRUCTION = """You are RedTape AI, an open-to-all civic AI chatbot assisting Indian citizens with ANY government service, certificate, licence, or bureaucratic procedure across India.
+Your task is CONVERSATIONAL CIVIC GUIDANCE, INTENT UNDERSTANDING, FACT EXTRACTION, ADAPTIVE INTERVIEWING, and CITING VERIFIED OR PROBABLE OFFICIAL GOVERNMENT RESOURCES.
 
 CRITICAL RULES & GROUNDING:
-1. Grounding & Anti-Hallucination: You do NOT have a live government research engine connected yet. NEVER invent or fabricate eligibility criteria, required documents, application fees, turnaround times, or government URLs. If the user asks for verified legal checklists, clarify that verified official requirements will be connected in subsequent milestones.
-2. Initial Bureaucratic Taxonomy:
-   - "wb_income_certificate": Income certificate in West Bengal (e.g. for college admissions, scholarships, subsidies).
+1. Open-to-All Civic Chatbot:
+   - You can converse, explain, and guide citizens on ANY Indian civic procedure (e.g. Domicile, Income, Trade Licence, FSSAI, Passport, Driving Licence, PAN Card, Voter ID, Aadhaar, Caste Certificates, Birth/Death Certificates, Welfare Schemes, etc.).
+   - If a service is verified (WB Domicile, WB Income, Trade Licence, FSSAI), use the verified official portals and checklists provided.
+   - If a service is outside the verified set, STILL ACT AS A HELPFUL CIVIC CHATBOT: provide helpful procedural steps, document checklists, and the probable official government portal (e.g. passportindia.gov.in, parivahan.gov.in, incometax.gov.in, voters.eci.gov.in, myaadhaar.uidai.gov.in, services.india.gov.in). Clearly note that these are probable official guidelines.
+   - NEVER invent non-existent government websites or fake URLs. Always use real official portals.
+2. Conversational Conciseness:
+   - Provide direct, warm, and concise answers.
+   - If asking an interview question, ask ONLY ONE natural question at a time.
+   - Only elaborate with full portal lists or heavy checklists when specifically asked by the citizen or when relevant.
+3. Bureaucratic Taxonomy:
+   - "wb_income_certificate": Income certificate in West Bengal.
    - "wb_domicile_certificate": Domicile / residential certificate in West Bengal.
-   - "fssai_registration": Food business registration or license under FSSAI (Food Safety and Standards Authority of India).
-   - "trade_licence": Municipal or panchayat trade licence to run a commercial establishment.
-     *NON-NEGOTIABLE*: Trade licence is a municipal permit and is STRICTLY SEPARATE from FSSAI food registration. NEVER classify trade licence as FSSAI.
-   - "food_business_setup": Opening or setting up a food business (e.g., bakery, restaurant, cafe, sweet shop). Acknowledge that food establishments typically involve both a local municipal Trade Licence and an FSSAI Food Safety registration, but do not assert unverified legal rules.
-   - "unsupported": Services outside the initial scope (e.g., passport, driving licence, property registration, voter card). Transparently acknowledge the limitation.
+   - "fssai_registration": Food business registration or license under FSSAI.
+   - "trade_licence": Municipal or panchayat trade licence (Certificate of Enlistment).
+   - "food_business_setup": Opening a commercial food business (Trade Licence + FSSAI).
+   - "passport_services": Indian Passport applications, renewals, and Tatkaal.
+   - "driving_licence": Driving licences, learner permits, and vehicle registration (Sarathi/Vahan).
+   - "pan_card": Permanent Account Number (PAN Card) issuance and corrections.
+   - "voter_id": Election Photo Identity Card (EPIC) and voter roll registration.
+   - "aadhaar_services": UIDAI Aadhaar card enrollment, update, and PVC card.
+   - "caste_certificate": SC/ST/OBC caste certificate issuance.
+   - "birth_death_certificate": Civil registration of births and deaths.
+   - "general_service": Any other Indian municipal, state, or central government service.
    - "unclear": Ambiguous or underspecified requests (e.g., "I need some certificate", "help me with paperwork"). Ask a concise clarifying question.
-3. Fact Extraction & Corrections:
+   - "unsupported": Non-civic or illegal requests outside public administration.
+4. Fact Extraction & Corrections:
    - Extract facts explicitly stated by the user into 'extracted_facts' (with field_name, field_value, exact evidence snippet).
+   - Use standardized field names: 'applicant_name', 'father_name', 'date_of_birth', 'present_address', 'stay_duration', 'business_type', 'business_location', 'application_type' (new/renewal), 'application_purpose', 'approximate_annual_turnover', 'residence_location'.
    - If the user explicitly corrects a prior fact (e.g. 'Actually, I live in Howrah'), set is_correction=true.
+   - Separate personal residence location from business shop location if both are mentioned.
    - Never extract guesses or assumptions as confirmed facts.
-   - Do NOT collect or store sensitive personal identifiers (Aadhaar, PAN, passwords, bank details).
-4. Context Memory & Non-Repetition:
-   - Never ask for information that is already in the 'Confirmed Facts' list.
-   - If missing information is needed, ask for ONE relevant missing context field in a natural, polite manner.
-5. Conversational Tone:
-   - Sound like a helpful human assistant. Do not use numbered choice menus (e.g., '1 for income, 2 for domicile').
+   - Do NOT collect or store sensitive personal identifiers (Aadhaar number, PAN, passwords, bank details).
+5. Adaptive Conversational Interviewing & Guidance:
+   - Sound like a warm, knowledgeable, helpful assistant. Do not use robotic numbered form menus.
+   - NEVER ask for information that is already in the 'Confirmed Facts' list.
+   - If a target field is specified, ask ONLY ONE conversational question for that field.
+   - Understand short answers, multiple facts in one message, and Hindi or mixed Hinglish naturally.
 """
 
 
@@ -96,8 +115,11 @@ class GeminiService:
         history: List[Dict],
         confirmed_facts: Dict[str, str],
         missing_fields: List[str],
+        target_field: Optional[str] = None,
+        interview_status: Optional[str] = None,
+        current_intent: Optional[str] = None,
     ) -> str:
-        """Assembles prompt grounding with history, confirmed facts, and missing fields."""
+        """Assembles prompt grounding with history, confirmed facts, missing fields, and verified official research."""
         recent_history = history[-10:] if len(history) > 10 else history
 
         lines = ["=== Prior Conversation Turns ==="]
@@ -118,6 +140,27 @@ class GeminiService:
 
         if missing_fields:
             lines.append(f"\nMissing Context Fields Needed: {', '.join(missing_fields)}")
+
+        if target_field:
+            lines.append(
+                f"\nNext Interview Focus: If asking a question, ask naturally ONLY for the target field: '{target_field}'. Do not re-ask known facts."
+            )
+        if interview_status == "ready_for_research":
+            lines.append(
+                "\nInterview Status: All preliminary scoping context is fulfilled. Acknowledge the details provided and share the official portal links and required document checklist clearly."
+            )
+
+        # Inject verified or probable official research based on service intent or query keywords
+        service_for_research = current_intent
+        if not service_for_research and current_message:
+            research_obj = research_service.get_service_research(None, query=current_message)
+            if research_obj:
+                service_for_research = research_obj.service_id
+
+        if service_for_research:
+            research_text = research_service.format_research_context_for_prompt(service_for_research, query=current_message)
+            if research_text:
+                lines.append(f"\n{research_text}")
 
         lines.append(f"\nCurrent User Message: {current_message}")
         lines.append(
@@ -146,7 +189,18 @@ class GeminiService:
             result.service_support = ServiceSupport.UNSUPPORTED
             result.next_action = NextAction.EXPLAIN_LIMITATION
 
-        elif intent == IntentCategory.TRADE_LICENCE:
+        elif intent in {
+            IntentCategory.TRADE_LICENCE,
+            IntentCategory.FOOD_BUSINESS_SETUP,
+            IntentCategory.PASSPORT_SERVICES,
+            IntentCategory.DRIVING_LICENCE,
+            IntentCategory.PAN_CARD,
+            IntentCategory.VOTER_ID,
+            IntentCategory.AADHAAR_SERVICES,
+            IntentCategory.CASTE_CERTIFICATE,
+            IntentCategory.BIRTH_DEATH_CERTIFICATE,
+            IntentCategory.GENERAL_SERVICE,
+        }:
             result.intent_status = IntentStatus.IDENTIFIED
             result.service_support = ServiceSupport.RECOGNIZED_NOT_IMPLEMENTED
             result.next_action = NextAction.ACKNOWLEDGE_INTENT
@@ -189,6 +243,9 @@ class GeminiService:
         history: Optional[List[Dict]] = None,
         confirmed_facts: Optional[Dict[str, str]] = None,
         missing_fields: Optional[List[str]] = None,
+        target_field: Optional[str] = None,
+        interview_status: Optional[str] = None,
+        current_intent: Optional[str] = None,
     ) -> StructuredIntentResult:
         """
         Sends conversation context to Gemini with structured output,
@@ -203,6 +260,9 @@ class GeminiService:
             history=history or [],
             confirmed_facts=facts_dict,
             missing_fields=missing_list,
+            target_field=target_field,
+            interview_status=interview_status,
+            current_intent=current_intent,
         )
 
         config = types.GenerateContentConfig(
@@ -248,6 +308,20 @@ class GeminiService:
             except APIError as api_err:
                 code = getattr(api_err, "code", None)
                 if code == 429:
+                    # Bounded single retry before failing to absorb short per-minute burst rate limits
+                    time.sleep(1.5)
+                    try:
+                        retry_resp = client.models.generate_content(
+                            model=model_candidate,
+                            contents=prompt,
+                            config=config,
+                        )
+                        if retry_resp.text:
+                            data = json.loads(retry_resp.text)
+                            structured = StructuredIntentResult.model_validate(data)
+                            return self.validate_consistency(structured, facts_dict)
+                    except Exception:
+                        pass
                     raise GeminiServiceError(
                         "Gemini API rate limit or quota exceeded. Please wait a moment and retry.",
                         status_code=429,

@@ -73,6 +73,72 @@ def init_db(db_path: str = None) -> None:
         UNIQUE(conversation_id, field_name)
     );
 
+    CREATE TABLE IF NOT EXISTS interview_state (
+        conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+        interview_status TEXT NOT NULL,
+        current_intent TEXT,
+        target_field TEXT,
+        skipped_fields TEXT,
+        last_decision TEXT,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS generated_documents (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        template_id TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        missing_fields TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS application_reviews (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE CASCADE,
+        service_id TEXT NOT NULL,
+        review_status TEXT NOT NULL,
+        latest_document_id TEXT REFERENCES generated_documents(id),
+        latest_document_version INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS review_approvals (
+        id TEXT PRIMARY KEY,
+        review_id TEXT NOT NULL REFERENCES application_reviews(id) ON DELETE CASCADE,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        document_id TEXT,
+        document_version INTEGER,
+        document_hash TEXT,
+        facts_snapshot_hash TEXT,
+        status TEXT NOT NULL, -- 'active' | 'invalidated'
+        invalidation_reason TEXT,
+        approved_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS review_audit_log (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        review_id TEXT NOT NULL,
+        document_version INTEGER,
+        event_type TEXT NOT NULL,
+        state_from TEXT,
+        state_to TEXT,
+        payload_json TEXT,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
+    CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_docs_conv ON generated_documents(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_reviews_conv ON application_reviews(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_approvals_rev ON review_approvals(review_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_conv ON review_audit_log(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
     CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);

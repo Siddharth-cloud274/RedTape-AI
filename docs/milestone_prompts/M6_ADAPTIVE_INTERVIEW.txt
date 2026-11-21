@@ -1,0 +1,685 @@
+MILESTONE M6 — ADAPTIVE CONVERSATIONAL
+INTERVIEW ENGINE
+
+PROJECT: RedTape AI
+TRACK: Agentic AI — Hack-N-Pitch 2026
+
+STATUS:
+M0, M1, M2, M3, M4 and M5 completed
+and verified.
+
+CURRENT OBJECTIVE:
+Build an adaptive conversational interview engine
+using the existing Gemini integration, persistent
+conversation memory, structured applicant facts,
+and missing-information tracker.
+
+The assistant must intelligently decide WHAT to
+ask, WHEN to ask, and WHEN to stop asking.
+
+Preserve the natural-language-first chat experience.
+
+DO NOT implement government research,
+official application checklists, PDF processing,
+or submission functionality.
+
+==================================================
+PHASE A — INSPECT AND PLAN
+==================================================
+
+Before modifying any files:
+
+1. Read AGENTS.md.
+2. Review all approved milestone documents.
+3. Inspect the FastAPI chat endpoint.
+4. Inspect the M4 Gemini integration.
+5. Inspect the M5 database schema.
+6. Inspect the applicant fact extractor.
+7. Inspect the memory manager.
+8. Inspect the missing-information tracker.
+9. Inspect the conversation state logic.
+10. Inspect current Pydantic schemas.
+11. Inspect tests and API contracts.
+12. Identify existing functionality to reuse.
+
+Then prepare:
+
+- File-by-file implementation plan
+- Interview decision architecture
+- Question-selection strategy
+- Interview state schema
+- Fact dependency rules
+- Failure-handling strategy
+- Automated and manual test cases
+
+WAIT FOR MY EXPLICIT APPROVAL.
+
+Do not write code or install dependencies
+before approval.
+
+==================================================
+PHASE B — INTERVIEW ENGINE ARCHITECTURE
+==================================================
+
+Create a modular adaptive interview engine.
+
+Suggested responsibilities:
+
+Interview Orchestrator:
+Controls the conversation interview lifecycle.
+
+Context Evaluator:
+Reads the user's intent and known facts.
+
+Question Planner:
+Identifies the most useful missing context.
+
+Question Generator:
+Uses Gemini to phrase the selected question.
+
+Interview State Manager:
+Tracks progress and interview decisions.
+
+Reuse existing M4/M5 components wherever possible.
+
+Do not duplicate the existing memory manager,
+fact extractor or intent classifier.
+
+Avoid unnecessary frameworks.
+
+==================================================
+PHASE C — CONTEXT-AWARE INTERVIEW PLANNING
+==================================================
+
+The interview engine must determine:
+
+1. The user's current administrative goal.
+2. Which facts are already known.
+3. Whether the intent remains ambiguous.
+4. Which preliminary context is missing.
+5. Whether previous facts are contradictory.
+6. Whether additional questions are useful.
+7. Whether the conversation should pause.
+8. Whether enough context exists for future
+   official-source research.
+
+Use only preliminary context schemas.
+
+Examples of possible context:
+
+INCOME CERTIFICATE:
+- State
+- District
+- Purpose
+
+DOMICILE CERTIFICATE:
+- State
+- District
+- Purpose
+
+TRADE LICENCE:
+- Business location
+- Business type
+- New application or renewal
+
+FSSAI REGISTRATION:
+- Food business type
+- State or business location
+- New application or renewal
+
+FOOD BUSINESS SETUP:
+- Proposed business type
+- Intended business location
+- Whether the business already operates
+
+These are provisional context examples.
+
+They are NOT official government checklists.
+
+Do not assert that these are legally required
+fields without official verification.
+
+Question requirements must remain controlled
+by backend schemas rather than invented by Gemini.
+
+==================================================
+PHASE D — INTELLIGENT QUESTION SELECTION
+==================================================
+
+Implement an adaptive next-question planner.
+
+Requirements:
+
+1. Use validated known facts.
+2. Identify unresolved context.
+3. Prioritize high-value clarification questions.
+4. Ask one primary question at a time.
+5. Avoid repeating answered questions.
+6. Avoid irrelevant questions.
+7. Understand answers provided out of order.
+8. Recognize multiple facts in one message.
+9. Support corrections to previous answers.
+10. Respect user refusals and skipped answers.
+11. Do not repeatedly ask the same skipped question.
+12. Support natural changes in conversation topic.
+
+The question planner must be deterministic
+where possible.
+
+Gemini may generate natural wording, but
+the backend chooses which fields need attention.
+
+Do not use a rigid hardcoded sequence of
+questions for every conversation.
+
+EXAMPLE:
+
+User:
+I need an income certificate for college.
+I'm from Kolkata, West Bengal.
+
+Expected:
+Extract the goal, purpose, state and district.
+
+Do not ask again for those known facts.
+
+The planner should determine if another
+preliminary clarification is necessary.
+
+==================================================
+PHASE E — STRUCTURED INTERVIEW DECISIONS
+==================================================
+
+Use Pydantic to validate interview decisions.
+
+Suggested structure:
+
+{
+  "interview_status": "collecting_context",
+  "current_intent": "trade_licence",
+  "known_fields": [
+    "business_type",
+    "business_location"
+  ],
+  "missing_context": [
+    "application_type"
+  ],
+  "next_action": "ask_question",
+  "target_field": "application_type",
+  "question": "Is this a new application or a renewal?"
+}
+
+Supported interview statuses:
+
+- understanding_goal
+- collecting_context
+- clarification_needed
+- paused
+- ready_for_research
+- unsupported
+
+Supported next actions:
+
+- ask_question
+- clarify_conflict
+- acknowledge_information
+- pause_interview
+- explain_limitation
+- handoff_to_future_research
+
+The backend must validate:
+
+- Status and next-action compatibility.
+- Target field belongs to the active schema.
+- Already-known confirmed facts are not
+  unnecessarily requested.
+- Questions are relevant to the current intent.
+- Unsupported workflows are not treated as
+  fully available.
+- Model output cannot bypass validation rules.
+
+The model's output is a proposal.
+
+The backend remains authoritative.
+
+==================================================
+PHASE F — CONVERSATIONAL NATURALNESS
+==================================================
+
+RedTape AI must sound like a helpful assistant,
+not like an application form.
+
+Good response:
+
+"Got it. Which municipality is your shop in?"
+
+Bad response:
+
+"Please complete Field 3: Municipality."
+
+Avoid:
+
+- Select option 1, 2 or 3.
+- Choose your service from the menu.
+- Please fill out all mandatory fields.
+- Long lists of unrelated questions.
+- Repetitive acknowledgments.
+- Unnecessary formal language.
+
+The assistant should:
+
+1. Acknowledge new information briefly.
+2. Ask the next useful question naturally.
+3. Understand short replies such as:
+   "Kolkata", "First time", "For college".
+4. Use prior conversation context.
+5. Understand messages containing several facts.
+6. Respond meaningfully to corrections.
+7. Avoid excessive follow-up questions.
+
+Preserve the user's chosen language when practical.
+
+Support ordinary English, Hindi and
+mixed Hindi-English conversational messages
+without changing the application's internal schema.
+
+==================================================
+PHASE G — CORRECTIONS AND CONFLICTS
+==================================================
+
+Integrate with the existing M5 memory manager.
+
+EXAMPLE 1:
+
+User:
+My shop is in Kolkata.
+
+Later:
+Actually, it's in Howrah.
+
+Expected:
+Update the business location to Howrah.
+Invalidate dependent context if necessary.
+Do not continue asking Kolkata-specific questions.
+
+EXAMPLE 2:
+
+User:
+I live in Kolkata, but my father's shop
+is in Barrackpore.
+
+Expected:
+Store residence location and business location
+as distinct facts.
+
+Do not overwrite one with the other.
+
+EXAMPLE 3:
+
+User:
+I don't know which municipality it comes under.
+
+Expected:
+Do not repeatedly ask the same question.
+Mark the information as unresolved.
+Explain that the jurisdiction can be checked
+during future official-source research.
+
+Do not invent the municipality.
+
+==================================================
+PHASE H — INTERVIEW COMPLETION LOGIC
+==================================================
+
+Implement controlled stopping conditions.
+
+The interview should pause or stop when:
+
+1. Enough preliminary context has been collected.
+2. The next information requires official research.
+3. The user asks to pause.
+4. The user declines to provide more information.
+5. The intent is unsupported or unresolved.
+6. The assistant cannot safely determine the
+   next useful question.
+
+Use ready_for_research only to indicate that
+sufficient preliminary context is available.
+
+It must NOT mean:
+
+- Government eligibility confirmed.
+- Application approved.
+- Official required documents verified.
+- Application is complete.
+- Documents are ready for submission.
+
+Example response:
+
+"I have the basic details needed to look into
+the applicable process. Official verification
+is not enabled yet."
+
+Do not claim that live research was performed.
+
+Do not continue asking questions just to
+increase the number of interview turns.
+
+==================================================
+PHASE I — INTEGRATION WITH EXISTING SYSTEM
+==================================================
+
+Preserve the current endpoint:
+
+POST /api/chat
+
+Preserve existing request and response fields:
+
+- conversation_id
+- client_message_id
+- message
+- message_id
+- reply
+- mode
+- intent
+
+Extend structured responses only when necessary.
+
+Suggested internal processing sequence:
+
+1. Receive user message.
+2. Validate request.
+3. Load conversation history and current facts.
+4. Perform M4 intent understanding.
+5. Perform M5 fact extraction and reconciliation.
+6. Evaluate relevant missing context.
+7. Select next interview action.
+8. Generate natural-language response.
+9. Validate interview decision.
+10. Persist facts, state and messages consistently.
+11. Return the response.
+
+Preserve:
+
+- M3 idempotency
+- M4 structured Gemini outputs
+- M5 persistent memory
+- M5 message evidence
+- Existing error handling
+- Existing API compatibility
+
+Do not hold SQLite transactions open
+during Gemini network calls.
+
+Use appropriate per-conversation coordination
+to prevent conflicting parallel updates.
+
+==================================================
+PHASE J — FRONTEND REQUIREMENTS
+==================================================
+
+Preserve the existing ChatGPT-style frontend.
+
+No frontend redesign.
+
+No service selection screen.
+
+No mandatory forms or dropdowns.
+
+No numbered service-choice flow.
+
+The user should continue interacting entirely
+through natural-language chat.
+
+Requirements:
+
+1. Display conversational replies.
+2. Preserve loading states.
+3. Preserve retries and network errors.
+4. Preserve New Chat.
+5. Preserve conversation switching.
+6. Preserve browser refresh restoration.
+7. Preserve mobile responsiveness.
+8. Do not display internal raw JSON.
+9. Do not show unverified official checklists.
+10. Do not add unnecessary controls.
+
+The interview engine should work behind
+the existing conversation interface.
+
+==================================================
+PHASE K — SAFETY AND DATA HANDLING
+==================================================
+
+Do not invent:
+
+- Government rules
+- Eligibility criteria
+- Official document requirements
+- Application fees
+- Processing timelines
+- Government form fields
+- Official website citations
+
+Do not request:
+
+- Aadhaar numbers
+- PAN numbers
+- Bank details
+- OTPs
+- Government portal passwords
+- Scans of identity documents
+
+Use synthetic applicant information
+during tests and demonstrations.
+
+Only store information relevant to
+the current conversation and stated goal.
+
+Never fabricate or confirm unverified
+applicant facts.
+
+Do not send unnecessary personal information
+to Gemini.
+
+Treat user messages as untrusted input.
+
+==================================================
+PHASE L — FAILURE HANDLING
+==================================================
+
+Handle:
+
+1. Missing conversation facts
+2. Ambiguous intent
+3. Unsupported intent
+4. Contradictory facts
+5. Skipped questions
+6. User changing topic
+7. Invalid interview decisions
+8. Gemini unavailable
+9. Gemini timeout
+10. Gemini quota/rate-limit errors
+11. SQLite errors
+12. Duplicate client requests
+13. Concurrent messages in one conversation
+
+On AI failure:
+
+- Do not fabricate an interview response.
+- Preserve the user's message.
+- Return a recoverable error.
+- Preserve valid previously stored facts.
+- Avoid duplicate writes on retry.
+
+==================================================
+PHASE M — AUTOMATED TESTING
+==================================================
+
+Use mocked Gemini responses for unit tests.
+
+INTERVIEW TESTS:
+
+1. Income certificate preliminary interview.
+2. Domicile certificate preliminary interview.
+3. Trade licence preliminary interview.
+4. FSSAI intent preliminary interview.
+5. Ambiguous user goal.
+6. Unsupported administrative request.
+7. Multiple facts in one message.
+8. Out-of-order answers.
+9. Already-answered questions.
+10. Explicit corrections.
+11. Conflicting facts.
+12. User skips a question.
+13. User says "I don't know".
+14. User changes the topic.
+15. User returns to the previous topic.
+16. Ready-for-research stopping condition.
+17. No unnecessary additional questions.
+18. Natural-language question generation.
+19. Invalid structured interview response.
+20. Incorrect target-field selection.
+
+PERSISTENCE AND REGRESSION:
+
+21. Conversation survives backend restart.
+22. Facts persist with evidence.
+23. Duplicate request does not duplicate state.
+24. Two conversations remain isolated.
+25. Parallel requests do not corrupt memory.
+26. Gemini timeout preserves recoverable state.
+27. M1 health endpoint still works.
+28. M2 ChatGPT-style interface still works.
+29. M3 API contract and retry remain functional.
+30. M4 intent detection still works.
+31. M5 persistent memory still works.
+
+Use test fixtures with fictional applicants.
+
+Run the existing test suite.
+
+Perform one controlled live Gemini smoke test.
+
+==================================================
+PHASE N — BROWSER VERIFICATION
+==================================================
+
+Verify the following conversation:
+
+USER:
+I need a trade licence for my father's shop.
+
+ASSISTANT:
+Asks for shop location or another relevant
+missing preliminary detail.
+
+USER:
+It's a grocery shop in Barrackpore.
+
+ASSISTANT:
+Recognizes business type and location.
+Does not repeat those questions.
+
+USER:
+It's a new application and the shop is rented.
+
+ASSISTANT:
+Extracts both new details.
+
+EXPECTED:
+The assistant stops asking preliminary
+questions when sufficient context exists,
+without claiming the government process
+has been officially verified.
+
+Additional checks:
+
+- New Chat functionality
+- Conversation switching
+- Browser refresh restoration
+- Context correction
+- Unsupported request handling
+- Backend error recovery
+- No service-selection UI
+- No browser console errors
+
+==================================================
+STRICT EXCLUSIONS
+==================================================
+
+DO NOT IMPLEMENT:
+
+- Live web research
+- Government website scraping
+- Search engine integration
+- Official legal requirement extraction
+- Government eligibility verification
+- Official document checklists
+- PDF generation or autofill
+- Government form mapping
+- File uploads
+- OTP collection
+- CAPTCHA automation
+- Official portal submission
+- New authentication systems
+- LangGraph or unnecessary frameworks
+- Major frontend redesigns
+
+Do not begin future milestones.
+
+==================================================
+M6 ACCEPTANCE CRITERIA
+==================================================
+
+1. Adaptive interview engine implemented.
+2. Existing Gemini integration preserved.
+3. M5 stored facts are reused.
+4. Next question selected from missing context.
+5. No fixed question sequence is required.
+6. Previously answered questions are not repeated.
+7. Multiple facts in one message are recognized.
+8. Out-of-order answers are supported.
+9. Corrections update interview decisions.
+10. Contradictory information is handled.
+11. Skipped/unknown answers are respected.
+12. Topic changes are handled naturally.
+13. Interview decisions use validated schemas.
+14. Backend controls the interview state.
+15. Interview stops when preliminary context
+    is sufficient.
+16. No official eligibility is falsely claimed.
+17. No government requirements are fabricated.
+18. M3 idempotency remains functional.
+19. M5 persistence remains functional.
+20. ChatGPT-style frontend remains unchanged.
+21. Existing M1–M5 regression tests pass.
+22. Browser verification succeeds.
+23. No out-of-scope features are introduced.
+
+==================================================
+FINAL REPORT
+==================================================
+
+After implementation, report:
+
+1. Files created and modified
+2. Updated interview architecture
+3. Question-selection strategy
+4. Interview state schema
+5. Memory integration
+6. API compatibility changes
+7. Actual automated test results
+8. Live Gemini smoke-test result
+9. Browser verification results
+10. Known limitations
+11. Confirmation M1–M5 remain functional
+
+STOP AFTER M6.
+
+DO NOT BEGIN M7 WITHOUT MY EXPLICIT APPROVAL.
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-21T03:45:53+05:30.
+</ADDITIONAL_METADATA>

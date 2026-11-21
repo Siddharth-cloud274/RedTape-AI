@@ -2,6 +2,11 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.facts import ExtractedFactItem, ApplicantFactResponse
+from app.schemas.document import DocumentReadinessCheck, DocumentMetadataResponse
+from app.schemas.research import OfficialServiceResearch
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.schemas.interview import InterviewDecision
 
 
 class IntentCategory(str, Enum):
@@ -10,6 +15,14 @@ class IntentCategory(str, Enum):
     FSSAI_REGISTRATION = "fssai_registration"
     TRADE_LICENCE = "trade_licence"
     FOOD_BUSINESS_SETUP = "food_business_setup"
+    PASSPORT_SERVICES = "passport_services"
+    DRIVING_LICENCE = "driving_licence"
+    PAN_CARD = "pan_card"
+    VOTER_ID = "voter_id"
+    AADHAAR_SERVICES = "aadhaar_services"
+    CASTE_CERTIFICATE = "caste_certificate"
+    BIRTH_DEATH_CERTIFICATE = "birth_death_certificate"
+    GENERAL_SERVICE = "general_service"
     UNSUPPORTED = "unsupported"
     UNCLEAR = "unclear"
 
@@ -38,6 +51,10 @@ class KnownInformation(BaseModel):
         default=None,
         description="Citizen's state, district, or city (e.g. Kolkata, West Bengal)"
     )
+    business_location: Optional[str] = Field(
+        default=None,
+        description="Location of business establishment (e.g. Barrackpore)"
+    )
     purpose: Optional[str] = Field(
         default=None,
         description="Purpose of certificate or registration (e.g. college admission, scholarship)"
@@ -45,6 +62,10 @@ class KnownInformation(BaseModel):
     business_type: Optional[str] = Field(
         default=None,
         description="Type of business (e.g. bakery, grocery, restaurant)"
+    )
+    application_type: Optional[str] = Field(
+        default=None,
+        description="Application status: new application or renewal"
     )
     annual_turnover: Optional[str] = Field(
         default=None,
@@ -125,3 +146,9 @@ class ChatResponse(BaseModel):
     mode: str = "gemini"
     intent: Optional[StructuredIntentResult] = None
     facts: Optional[List[ApplicantFactResponse]] = None
+    interview: Optional[object] = None
+    document_readiness: Optional[DocumentReadinessCheck] = None
+    document_draft: Optional[DocumentMetadataResponse] = None
+    official_resources: Optional[OfficialServiceResearch] = None
+    review: Optional[object] = None
+
