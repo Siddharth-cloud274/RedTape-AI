@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import AppShell from './components/AppShell';
 import ChatWindow from './components/ChatWindow';
+import HeroSection from './components/HeroSection';
 import { sendChatMessage } from './services/chatTransport';
 import { getConversationHistory } from './services/api';
 
@@ -57,6 +59,8 @@ export default function App() {
   const [activeId, setActiveId] = useState(() => conversations[0]?.id);
   // Track which conversation IDs currently have a message in-flight
   const [pendingConversations, setPendingConversations] = useState({});
+  // Hero section introduction overlay state
+  const [showHero, setShowHero] = useState(true);
 
   const activeConversation = conversations.find((c) => c.id === activeId) || conversations[0];
   const isTyping = Boolean(pendingConversations[activeConversation?.id]);
@@ -358,4 +362,3 @@ export default function App() {
     </AppShell>
   );
 }
-
