@@ -1,7 +1,8 @@
 import React from 'react';
 import { User, Bot, AlertCircle, RotateCcw } from 'lucide-react';
+import DocumentCard from './DocumentCard';
 
-export default function MessageBubble({ message, isTyping = false, onRetry }) {
+export default function MessageBubble({ message, isTyping = false, onRetry, onUpdateDocument }) {
   if (isTyping) {
     return (
       <div className="flex items-start gap-3 max-w-3xl mr-auto py-2">
@@ -69,6 +70,14 @@ export default function MessageBubble({ message, isTyping = false, onRetry }) {
           }`}
         >
           {message.content}
+
+          {/* Attached Document Draft Card */}
+          {!isUser && message.document_draft && (
+            <DocumentCard
+              document={message.document_draft}
+              onUpdateDocument={onUpdateDocument}
+            />
+          )}
         </div>
 
         {/* Status / Error & Retry Action */}

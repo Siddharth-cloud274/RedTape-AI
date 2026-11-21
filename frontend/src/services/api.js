@@ -135,4 +135,74 @@ export async function getConversationHistory(conversationId) {
   }
 }
 
+/**
+ * Trigger official draft PDF generation (POST /api/documents/draft)
+ */
+export async function createDocumentDraft({ conversationId, templateId = 'kolkata_domicile_higher_studies', customFieldValues = null }) {
+  const url = `${API_BASE_URL}/api/documents/draft`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        template_id: templateId,
+        custom_field_values: customFieldValues,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: data?.detail || `HTTP error ${response.status}`,
+      };
+    }
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, status: 0, error: error.message };
+  }
+}
+
+/**
+ * Regenerate official draft PDF (POST /api/documents/:id/regenerate)
+ */
+export async function regenerateDocumentDraft({ documentId, updatedFields }) {
+  const url = `${API_BASE_URL}/api/documents/${encodeURIComponent(documentId)}/regenerate`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ updated_fields: updatedFields }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: data?.detail || `HTTP error ${response.status}`,
+      };
+    }
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, status: 0, error: error.message };
+  }
+}
+
+export function getDocumentPreviewUrl(documentId) {
+  return `${API_BASE_URL}/api/documents/${encodeURIComponent(documentId)}/preview`;
+}
+
+export function getDocumentDownloadUrl(documentId) {
+  return `${API_BASE_URL}/api/documents/${encodeURIComponent(documentId)}/download`;
+}
+
 export { API_BASE_URL };

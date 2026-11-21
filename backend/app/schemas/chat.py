@@ -2,6 +2,7 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.facts import ExtractedFactItem, ApplicantFactResponse
+from app.schemas.document import DocumentReadinessCheck, DocumentMetadataResponse
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.schemas.interview import InterviewDecision
@@ -137,4 +138,6 @@ class ChatResponse(BaseModel):
     intent: Optional[StructuredIntentResult] = None
     facts: Optional[List[ApplicantFactResponse]] = None
     interview: Optional[object] = None
+    document_readiness: Optional[DocumentReadinessCheck] = None
+    document_draft: Optional[DocumentMetadataResponse] = None
 

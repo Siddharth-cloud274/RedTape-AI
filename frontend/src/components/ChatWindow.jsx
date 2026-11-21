@@ -9,6 +9,7 @@ export default function ChatWindow({
   onSendMessage,
   onRetryMessage,
   onResetSession,
+  onUpdateDocument,
   isTyping = false,
 }) {
   const [prefill, setPrefill] = useState('');
@@ -64,6 +65,7 @@ export default function ChatWindow({
                 key={msg.id}
                 message={msg}
                 onRetry={onRetryMessage}
+                onUpdateDocument={onUpdateDocument}
               />
             ))}
 

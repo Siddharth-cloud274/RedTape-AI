@@ -83,9 +83,23 @@ def init_db(db_path: str = None) -> None:
         updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS generated_documents (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        template_id TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        missing_fields TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
     CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_docs_conv ON generated_documents(conversation_id);
     """
     with get_db(db_path) as conn:
         conn.executescript(schema_sql)

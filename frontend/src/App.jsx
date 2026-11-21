@@ -89,14 +89,20 @@ export default function App() {
     getConversationHistory(backendId).then((res) => {
       if (!isMounted || !res.success || !res.data) return;
 
-      const serverMessages = (res.data.messages || []).map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        mode: m.mode,
-        status: 'sent',
-        timestamp: m.created_at,
-      }));
+      const serverMessages = (res.data.messages || []).map((m, idx, arr) => {
+        const isLastAssistant =
+          m.role === 'assistant' &&
+          !arr.slice(idx + 1).some((other) => other.role === 'assistant');
+        return {
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          mode: m.mode,
+          status: 'sent',
+          timestamp: m.created_at,
+          document_draft: isLastAssistant ? res.data.document_draft : null,
+        };
+      });
 
       setConversations((prev) =>
         prev.map((c) => {
@@ -106,6 +112,7 @@ export default function App() {
               title: res.data.title || c.title,
               messages: serverMessages,
               facts: res.data.facts || [],
+              document_draft: res.data.document_draft || null,
               isExpired: false,
             };
           }
@@ -189,6 +196,7 @@ export default function App() {
               content: responseData.reply,
               mode: responseData.mode,
               timestamp: new Date().toISOString(),
+              document_draft: responseData.document_draft || null,
             };
 
             return {
@@ -197,6 +205,7 @@ export default function App() {
               isExpired: false,
               messages: [...updatedMessages, assistantMsg],
               facts: responseData.facts || c.facts || [],
+              document_draft: responseData.document_draft || c.document_draft || null,
             };
           }
           return c;
@@ -300,6 +309,28 @@ export default function App() {
     await dispatchMessage(targetConvId, targetMessage.id, targetMessage.content);
   };
 
+  const handleUpdateDocument = (updatedDoc) => {
+    if (!updatedDoc) return;
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === activeId || c.backendId === updatedDoc.conversation_id) {
+          const updatedMessages = c.messages.map((m, idx, arr) => {
+            const isLastAssistant =
+              m.role === 'assistant' &&
+              !arr.slice(idx + 1).some((other) => other.role === 'assistant');
+            return isLastAssistant ? { ...m, document_draft: updatedDoc } : m;
+          });
+          return {
+            ...c,
+            messages: updatedMessages,
+            document_draft: updatedDoc,
+          };
+        }
+        return c;
+      })
+    );
+  };
+
   return (
     <AppShell
       conversations={conversations}
@@ -313,6 +344,7 @@ export default function App() {
         onSendMessage={handleSendMessage}
         onRetryMessage={handleRetryMessage}
         onResetSession={handleResetSession}
+        onUpdateDocument={handleUpdateDocument}
         isTyping={isTyping}
       />
     </AppShell>
