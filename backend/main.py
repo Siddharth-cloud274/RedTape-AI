@@ -20,10 +20,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Explicit CORS configuration for frontend
+# Explicit CORS configuration for frontend (supporting IPv4, IPv6, and LAN loopback)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
