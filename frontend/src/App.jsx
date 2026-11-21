@@ -101,6 +101,7 @@ export default function App() {
           status: 'sent',
           timestamp: m.created_at,
           document_draft: isLastAssistant ? res.data.document_draft : null,
+          official_resources: isLastAssistant ? res.data.official_resources : null,
         };
       });
 
@@ -113,6 +114,7 @@ export default function App() {
               messages: serverMessages,
               facts: res.data.facts || [],
               document_draft: res.data.document_draft || null,
+              official_resources: res.data.official_resources || null,
               isExpired: false,
             };
           }
@@ -197,6 +199,7 @@ export default function App() {
               mode: responseData.mode,
               timestamp: new Date().toISOString(),
               document_draft: responseData.document_draft || null,
+              official_resources: responseData.official_resources || null,
             };
 
             return {
@@ -206,6 +209,7 @@ export default function App() {
               messages: [...updatedMessages, assistantMsg],
               facts: responseData.facts || c.facts || [],
               document_draft: responseData.document_draft || c.document_draft || null,
+              official_resources: responseData.official_resources || c.official_resources || null,
             };
           }
           return c;

@@ -3,6 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 from app.schemas.facts import ExtractedFactItem, ApplicantFactResponse
 from app.schemas.document import DocumentReadinessCheck, DocumentMetadataResponse
+from app.schemas.research import OfficialServiceResearch
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.schemas.interview import InterviewDecision
@@ -140,4 +141,5 @@ class ChatResponse(BaseModel):
     interview: Optional[object] = None
     document_readiness: Optional[DocumentReadinessCheck] = None
     document_draft: Optional[DocumentMetadataResponse] = None
+    official_resources: Optional[OfficialServiceResearch] = None
 

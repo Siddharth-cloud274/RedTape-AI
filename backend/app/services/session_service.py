@@ -27,6 +27,7 @@ from app.services.context_tracker import context_tracker
 from app.services.interview_engine import interview_orchestrator
 from app.services.interview_engine.planner import QuestionPlanner
 from app.services.extractor_helper import extract_heuristic_applicant_facts
+from app.services.research_service import research_service
 from app.services.pdf.validator import (
     validate_document_readiness,
     get_conversation_facts,
@@ -81,6 +82,11 @@ class SessionManager:
             facts = memory_service.get_confirmed_facts(conversation_id, db)
             interview_state, _ = interview_orchestrator.get_interview_state(conversation_id, db)
             latest_doc = get_latest_document_for_conversation(conversation_id, db)
+            official_res = (
+                research_service.get_service_research(conv_row["current_intent"])
+                if conv_row["current_intent"]
+                else None
+            )
 
             return ConversationDetailResponse(
                 conversation_id=conv_row["id"],
@@ -93,6 +99,7 @@ class SessionManager:
                 facts=facts,
                 interview=interview_state,
                 document_draft=latest_doc,
+                official_resources=official_res,
             )
 
     def get_session(self, conversation_id: str) -> Optional[Dict]:
@@ -160,6 +167,9 @@ class SessionManager:
                     cached_interview, _ = interview_orchestrator.get_interview_state(conversation_id, db)
                     latest_doc = get_latest_document_for_conversation(conversation_id, db)
                     readiness = validate_document_readiness(conversation_id, db=db)
+                    existing_conv = db.execute("SELECT current_intent FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                    intent_val = existing_conv["current_intent"] if existing_conv else None
+                    official_res = research_service.get_service_research(intent_val) if intent_val else None
                     return ChatResponse(
                         conversation_id=conversation_id,
                         message_id=assistant_msg["id"],
@@ -169,6 +179,7 @@ class SessionManager:
                         interview=cached_interview,
                         document_readiness=readiness,
                         document_draft=latest_doc,
+                        official_resources=official_res,
                     )
 
             # 3. Insert or update user message as pending
@@ -212,6 +223,7 @@ class SessionManager:
                 history=prior_history,
                 confirmed_facts=confirmed_facts,
                 target_field=prev_target,
+                current_intent=existing_intent,
             )
         except GeminiServiceError as ai_err:
             is_pytest = "PYTEST_CURRENT_TEST" in os.environ
@@ -280,14 +292,20 @@ class SessionManager:
                 db=db,
             )
 
-            # 4. Enforce stopping conditions & safe phrasing
+            # 4. Enforce stopping conditions & official research guidance
+            official_resources = research_service.get_service_research(structured_result.intent)
             reply_text = structured_result.reply
             if interview_decision.interview_status == InterviewStatus.READY_FOR_RESEARCH:
-                closing_disclaimer = (
-                    "Official verification and legal application checklists will be connected in future milestones."
-                )
-                if "official" not in reply_text.lower() and "milestone" not in reply_text.lower() and "future" not in reply_text.lower():
-                    reply_text = f"{reply_text.strip()}\n\n{closing_disclaimer}"
+                if official_resources and official_resources.official_portal_url:
+                    if official_resources.official_portal_url not in reply_text:
+                        reply_text = (
+                            f"{reply_text.strip()}\n\n"
+                            f"**Official Application Portal**: [{official_resources.title} Portal]({official_resources.official_portal_url})\n"
+                            f"**Issuing Authority**: {official_resources.issuing_authority}\n\n"
+                            f"Official verification and application procedures are guided by verified government portal resources."
+                        )
+                elif "official" not in reply_text.lower():
+                    reply_text = f"{reply_text.strip()}\n\nOfficial verification is guided by official government portals."
             elif interview_decision.interview_status == InterviewStatus.PAUSED:
                 pause_note = "I have paused our conversation here. Your details are saved and you can continue anytime."
                 if "pause" not in reply_text.lower():
@@ -356,6 +374,7 @@ class SessionManager:
             interview=interview_decision,
             document_readiness=readiness,
             document_draft=latest_doc,
+            official_resources=official_resources,
         )
 
     def _generate_resilient_fallback(
@@ -405,7 +424,24 @@ class SessionManager:
         )
 
         # 5. Formulate natural conversational reply
-        if missing:
+        res = research_service.get_service_research(intent)
+        is_asking_for_resources = any(
+            w in msg_lower
+            for w in ["link", "website", "portal", "url", "where to apply", "how to apply", "document", "checklist", "form", "page"]
+        )
+
+        if is_asking_for_resources and res:
+            links_str = "\n".join(f"• [{link.title}]({link.url}) — {link.description}" for link in res.official_links)
+            docs_str = "\n".join(f"• {doc}" for doc in res.required_documents)
+            reply = (
+                f"Here are the verified official government portals and checklist for **{res.title}**:\n\n"
+                f"**Official Portals & Resources**:\n{links_str}\n\n"
+                f"**Verified Required Documents**:\n{docs_str}\n\n"
+                f"**Issuing Authority**: {res.issuing_authority} ({res.jurisdiction})"
+            )
+            action = NextAction.ACKNOWLEDGE_INTENT
+            intent_status = IntentStatus.IDENTIFIED
+        elif missing:
             next_target = missing[0]
             question = QuestionPlanner.get_default_question(next_target)
 
@@ -428,6 +464,12 @@ class SessionManager:
                 stay = merged.get("stay_duration", "Not specified")
                 purpose = merged.get("application_purpose", "Higher Studies")
 
+                portal_link = (
+                    f"**Official Application Portal**: [{res.title} Portal]({res.official_portal_url})\n\n"
+                    if res
+                    else ""
+                )
+
                 reply = (
                     f"I have recorded and verified all your application details:\n\n"
                     f"• **Full Name**: {name}\n"
@@ -437,13 +479,20 @@ class SessionManager:
                     f"• **Duration of Stay**: {stay}\n"
                     f"• **Purpose**: {purpose}\n"
                     f"• **Issuing Authority**: Kolkata Collectorate, Government of West Bengal\n\n"
-                    f"Please review the verified details above. Your official unsubmitted application draft has "
-                    f"been generated below. You can preview the PDF, download it, or make corrections anytime."
+                    f"{portal_link}"
+                    f"Your official unsubmitted application draft has been generated below. "
+                    f"You can preview the PDF, download it, or make corrections anytime."
                 )
             else:
+                links_str = (
+                    "\n".join(f"• [{link.title}]({link.url})" for link in res.official_links)
+                    if res
+                    else ""
+                )
                 reply = (
-                    f"I have verified all your preliminary application details. "
-                    f"Official verification and legal requirements will be connected in future milestones."
+                    f"I have recorded all your preliminary details for **{res.title if res else intent.value}**.\n\n"
+                    f"**Issuing Authority**: {res.issuing_authority if res else 'Competent Government Authority'}\n\n"
+                    f"**Official Portals & Resources**:\n{links_str}"
                 )
             action = NextAction.ACKNOWLEDGE_INTENT
             intent_status = IntentStatus.IDENTIFIED

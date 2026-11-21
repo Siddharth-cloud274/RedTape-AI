@@ -1,6 +1,62 @@
 import React from 'react';
 import { User, Bot, AlertCircle, RotateCcw } from 'lucide-react';
 import DocumentCard from './DocumentCard';
+import OfficialResourcesCard from './OfficialResourcesCard';
+
+function renderFormattedContent(content) {
+  if (!content) return null;
+
+  const regex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)|\*\*([^*]+)\*\*|(https?:\/\/[^\s\)]+)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.substring(lastIndex, match.index));
+    }
+
+    if (match[1] && match[2]) {
+      parts.push(
+        <a
+          key={match.index}
+          href={match[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-0.5 text-emerald-400 hover:text-emerald-300 underline underline-offset-2 font-medium"
+        >
+          {match[1]}
+        </a>
+      );
+    } else if (match[3]) {
+      parts.push(
+        <strong key={match.index} className="font-semibold text-white">
+          {match[3]}
+        </strong>
+      );
+    } else if (match[4]) {
+      parts.push(
+        <a
+          key={match.index}
+          href={match[4]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 break-all"
+        >
+          {match[4]}
+        </a>
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.substring(lastIndex));
+  }
+
+  return parts;
+}
 
 export default function MessageBubble({ message, isTyping = false, onRetry, onUpdateDocument }) {
   if (isTyping) {
@@ -69,7 +125,12 @@ export default function MessageBubble({ message, isTyping = false, onRetry, onUp
               : 'bg-slate-900/90 text-slate-200 border border-slate-800 rounded-tl-sm shadow-sm'
           }`}
         >
-          {message.content}
+          {renderFormattedContent(message.content)}
+
+          {/* Attached Official Government Resources & Checklist */}
+          {!isUser && message.official_resources && (
+            <OfficialResourcesCard resources={message.official_resources} />
+          )}
 
           {/* Attached Document Draft Card */}
           {!isUser && message.document_draft && (

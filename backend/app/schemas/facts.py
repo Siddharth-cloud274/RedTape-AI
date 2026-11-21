@@ -52,4 +52,5 @@ class ConversationDetailResponse(BaseModel):
     facts: List[ApplicantFactResponse] = []
     interview: Optional[object] = None
     document_draft: Optional[object] = None
+    official_resources: Optional[object] = None
 
