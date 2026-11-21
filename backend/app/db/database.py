@@ -139,6 +139,9 @@ def init_db(db_path: str = None) -> None:
     CREATE INDEX IF NOT EXISTS idx_reviews_conv ON application_reviews(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_rev ON review_approvals(review_id);
     CREATE INDEX IF NOT EXISTS idx_audit_conv ON review_audit_log(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at ASC);
+    CREATE INDEX IF NOT EXISTS idx_messages_client_id ON messages(conversation_id, client_message_id);
+    CREATE INDEX IF NOT EXISTS idx_facts_conv ON applicant_facts(conversation_id);
     """
     with get_db(db_path) as conn:
         conn.executescript(schema_sql)
