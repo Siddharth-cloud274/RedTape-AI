@@ -102,6 +102,7 @@ export default function App() {
           timestamp: m.created_at,
           document_draft: isLastAssistant ? res.data.document_draft : null,
           official_resources: isLastAssistant ? res.data.official_resources : null,
+          review: isLastAssistant ? res.data.review : null,
         };
       });
 
@@ -115,6 +116,7 @@ export default function App() {
               facts: res.data.facts || [],
               document_draft: res.data.document_draft || null,
               official_resources: res.data.official_resources || null,
+              review: res.data.review || null,
               isExpired: false,
             };
           }
@@ -200,6 +202,7 @@ export default function App() {
               timestamp: new Date().toISOString(),
               document_draft: responseData.document_draft || null,
               official_resources: responseData.official_resources || null,
+              review: responseData.review || null,
             };
 
             return {
@@ -210,6 +213,7 @@ export default function App() {
               facts: responseData.facts || c.facts || [],
               document_draft: responseData.document_draft || c.document_draft || null,
               official_resources: responseData.official_resources || c.official_resources || null,
+              review: responseData.review || c.review || null,
             };
           }
           return c;

@@ -28,6 +28,7 @@ from app.services.interview_engine import interview_orchestrator
 from app.services.interview_engine.planner import QuestionPlanner
 from app.services.extractor_helper import extract_heuristic_applicant_facts
 from app.services.research_service import research_service
+from app.services.review_service import review_service
 from app.services.pdf.validator import (
     validate_document_readiness,
     get_conversation_facts,
@@ -88,6 +89,12 @@ class SessionManager:
                 else None
             )
 
+            review_summary = None
+            try:
+                review_summary = review_service.get_review_summary(conversation_id)
+            except Exception:
+                pass
+
             return ConversationDetailResponse(
                 conversation_id=conv_row["id"],
                 title=conv_row["title"],
@@ -100,6 +107,7 @@ class SessionManager:
                 interview=interview_state,
                 document_draft=latest_doc,
                 official_resources=official_res,
+                review=review_summary,
             )
 
     def get_session(self, conversation_id: str) -> Optional[Dict]:
@@ -170,6 +178,11 @@ class SessionManager:
                     existing_conv = db.execute("SELECT current_intent FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
                     intent_val = existing_conv["current_intent"] if existing_conv else None
                     official_res = research_service.get_service_research(intent_val) if intent_val else None
+                    review_summary = None
+                    try:
+                        review_summary = review_service.get_review_summary(conversation_id)
+                    except Exception:
+                        pass
                     return ChatResponse(
                         conversation_id=conversation_id,
                         message_id=assistant_msg["id"],
@@ -180,6 +193,7 @@ class SessionManager:
                         document_readiness=readiness,
                         document_draft=latest_doc,
                         official_resources=official_res,
+                        review=review_summary,
                     )
 
             # 3. Insert or update user message as pending
@@ -283,6 +297,17 @@ class SessionManager:
             )
             updated_facts = memory_service.get_facts_dict(conversation_id, db)
 
+            # Invalidate any active approval if user explicitly corrected or updated facts
+            has_fact_corrections = any(
+                f.confidence_status == "corrected" for f in saved_facts
+            ) or any(f.is_correction for f in all_facts)
+            if has_fact_corrections:
+                review_service.invalidate_approval_if_needed(
+                    conversation_id=conversation_id,
+                    reason="applicant_fact_corrected_by_user",
+                    db=db,
+                )
+
             # 3. Evaluate adaptive interview decision
             interview_decision = interview_orchestrator.evaluate_interview_decision(
                 conversation_id=conversation_id,
@@ -383,8 +408,18 @@ class SessionManager:
                         document_id=latest_doc.document_id,
                         version=latest_doc.version + 1,
                     )
+                    review_service.invalidate_approval_if_needed(
+                        conversation_id=conversation_id,
+                        reason=f"draft_regenerated_to_v{latest_doc.version}",
+                    )
         else:
             latest_doc = None
+
+        review_summary = None
+        try:
+            review_summary = review_service.get_review_summary(conversation_id)
+        except Exception:
+            pass
 
         return ChatResponse(
             conversation_id=conversation_id,
@@ -397,6 +432,7 @@ class SessionManager:
             document_readiness=readiness,
             document_draft=latest_doc,
             official_resources=official_resources,
+            review=review_summary,
         )
 
     def _generate_resilient_fallback(

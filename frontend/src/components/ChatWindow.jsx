@@ -64,6 +64,7 @@ export default function ChatWindow({
               <MessageBubble
                 key={msg.id}
                 message={msg}
+                conversationId={conversation?.backendId}
                 onRetry={onRetryMessage}
                 onUpdateDocument={onUpdateDocument}
               />

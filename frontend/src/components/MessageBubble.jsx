@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Bot, AlertCircle, RotateCcw } from 'lucide-react';
 import DocumentCard from './DocumentCard';
 import OfficialResourcesCard from './OfficialResourcesCard';
+import ApplicationReviewCard from './ApplicationReviewCard';
 
 function renderFormattedContent(content) {
   if (!content) return null;
@@ -58,7 +59,7 @@ function renderFormattedContent(content) {
   return parts;
 }
 
-export default function MessageBubble({ message, isTyping = false, onRetry, onUpdateDocument }) {
+export default function MessageBubble({ message, conversationId, isTyping = false, onRetry, onUpdateDocument }) {
   if (isTyping) {
     return (
       <div className="flex items-start gap-3 max-w-3xl mr-auto py-2">
@@ -139,6 +140,23 @@ export default function MessageBubble({ message, isTyping = false, onRetry, onUp
               onUpdateDocument={onUpdateDocument}
             />
           )}
+
+          {/* Application Review, Human Approval & Handoff Checkpoint */}
+          {!isUser &&
+            message.review &&
+            (message.review.can_approve ||
+              message.review.active_approval ||
+              message.review.review_status === 'user_approved' ||
+              message.review.review_status === 'approval_invalidated' ||
+              message.review.review_status === 'review_changes_requested') && (
+              <ApplicationReviewCard
+                conversationId={conversationId}
+                initialReview={message.review}
+                latestDocument={message.document_draft}
+                onApprovalSuccess={onUpdateDocument}
+                onChangesRequested={onUpdateDocument}
+              />
+            )}
         </div>
 
         {/* Status / Error & Retry Action */}

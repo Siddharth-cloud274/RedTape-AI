@@ -53,4 +53,5 @@ class ConversationDetailResponse(BaseModel):
     interview: Optional[object] = None
     document_draft: Optional[object] = None
     official_resources: Optional[object] = None
+    review: Optional[object] = None
 

@@ -17,6 +17,7 @@ from app.services.pdf.generator import (
     regenerate_pdf_draft,
 )
 from app.services.pdf.validator import validate_document_readiness
+from app.services.review_service import review_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -125,6 +126,15 @@ async def regenerate_document(document_id: str, request: DocumentRegenerateReque
         new_metadata = regenerate_pdf_draft(
             document_id=document_id, updated_fields=request.updated_fields
         )
+        # Automatically invalidate any prior approvals due to manual document revision
+        try:
+            review_service.invalidate_approval_if_needed(
+                conversation_id=new_metadata.conversation_id,
+                reason=f"manual_draft_regeneration_to_v{new_metadata.version}",
+            )
+        except Exception:
+            pass
+
         return DocumentDraftResponse(
             success=True,
             document=new_metadata,

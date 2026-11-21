@@ -205,4 +205,127 @@ export function getDocumentDownloadUrl(documentId) {
   return `${API_BASE_URL}/api/documents/${encodeURIComponent(documentId)}/download`;
 }
 
+/**
+ * Fetch application review summary (GET /api/reviews/:conversation_id)
+ */
+export async function fetchReviewSummary(conversationId) {
+  const url = `${API_BASE_URL}/api/reviews/${encodeURIComponent(conversationId)}`;
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, status: res.status, error: data?.detail || `HTTP ${res.status}` };
+    }
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, status: 0, error: err.message };
+  }
+}
+
+/**
+ * Approve a specific document draft version (POST /api/reviews/:conversation_id/approve)
+ */
+export async function approveApplicationReview({
+  conversationId,
+  documentId,
+  documentVersion,
+  confirmCorrectness,
+  acknowledgeUnsubmitted,
+}) {
+  const url = `${API_BASE_URL}/api/reviews/${encodeURIComponent(conversationId)}/approve`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        document_id: documentId,
+        document_version: documentVersion,
+        confirm_correctness: Boolean(confirmCorrectness),
+        acknowledge_unsubmitted: Boolean(acknowledgeUnsubmitted),
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, status: res.status, error: data?.detail || `HTTP ${res.status}` };
+    }
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, status: 0, error: err.message };
+  }
+}
+
+/**
+ * Request corrections/changes on application review (POST /api/reviews/:conversation_id/request-changes)
+ */
+export async function requestReviewChanges({ conversationId, reason, fieldsToEdit = [] }) {
+  const url = `${API_BASE_URL}/api/reviews/${encodeURIComponent(conversationId)}/request-changes`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        reason,
+        fields_to_edit: fieldsToEdit,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, status: res.status, error: data?.detail || `HTTP ${res.status}` };
+    }
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, status: 0, error: err.message };
+  }
+}
+
+/**
+ * Fetch verified online or offline submission handoff instructions (GET /api/reviews/:conversation_id/handoff)
+ */
+export async function fetchHandoffGuidance(conversationId) {
+  const url = `${API_BASE_URL}/api/reviews/${encodeURIComponent(conversationId)}/handoff`;
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, status: res.status, error: data?.detail || `HTTP ${res.status}` };
+    }
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, status: 0, error: err.message };
+  }
+}
+
+/**
+ * Record portal open or download handoff action into audit log (POST /api/reviews/:conversation_id/handoff/action)
+ */
+export async function recordHandoffAction({ conversationId, action, urlTarget }) {
+  const url = `${API_BASE_URL}/api/reviews/${encodeURIComponent(conversationId)}/handoff/action`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        action,
+        url_target: urlTarget || null,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, status: res.status, error: data?.detail || `HTTP ${res.status}` };
+    }
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, status: 0, error: err.message };
+  }
+}
+
 export { API_BASE_URL };

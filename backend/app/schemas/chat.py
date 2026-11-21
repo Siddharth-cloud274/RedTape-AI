@@ -150,4 +150,5 @@ class ChatResponse(BaseModel):
     document_readiness: Optional[DocumentReadinessCheck] = None
     document_draft: Optional[DocumentMetadataResponse] = None
     official_resources: Optional[OfficialServiceResearch] = None
+    review: Optional[object] = None
 
